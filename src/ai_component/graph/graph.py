@@ -147,7 +147,7 @@ async def process_query_async(
 if __name__ == "__main__":
     async def test_async_execution():
         # Simple test
-        query = "Can you tell me about the today temperature and forecase the next few days weather in Varanasi?"
+        query = "Can you tell me about the today temperature of varanasi, uttar pradesh, india?"
         result = await process_query_async(query, workflow="DiseaseNode")
         print("Simple test result:")
         # Print the last AI message
