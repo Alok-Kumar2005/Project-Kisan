@@ -14,6 +14,8 @@ from src.ai_component.core.schedules import (
     TUESDAY_SCHEDULE,
     WEDNESDAY_SCHEDULE,
 )
+from src.ai_component.logger import logging
+from src.ai_component.exception import CustomException
 
 
 class ScheduleContextGenerator:
@@ -32,10 +34,16 @@ class ScheduleContextGenerator:
     @staticmethod
     def _parse_time_range(time_range: str) -> tuple:
         """Parse a time range string (e.g., '06:00-07:00') into start and end times."""
-        start_str, end_str = time_range.split("-")
-        start_time = datetime.strptime(start_str, "%H:%M").time()
-        end_time = datetime.strptime(end_str, "%H:%M").time()
-        return start_time, end_time
+        try:
+            logging.debug(f"Parsing time range: {time_range}")
+            start_str, end_str = time_range.split("-")
+            start_time = datetime.strptime(start_str, "%H:%M").time()
+            end_time = datetime.strptime(end_str, "%H:%M").time()
+            logging.debug(f"Parsed start time: {start_time}, end time: {end_time}")
+            return start_time, end_time
+        except CustomException as e:
+            logging.error(f"Error in Engineering Node : {str(e)}")
+            raise CustomException(e, sys) from e
 
     @classmethod
     def get_current_activity(cls) -> Optional[str]:
@@ -44,26 +52,31 @@ class ScheduleContextGenerator:
         Returns:
             str: Description of current activity, or None if no matching time slot is found
         """
-        current_datetime = datetime.now()
-        current_time = current_datetime.time()
-        current_day = current_datetime.weekday()
+        try:
+            logging.info("Getting current activity for Ramesh Kumar")
+            current_datetime = datetime.now()
+            current_time = current_datetime.time()
+            current_day = current_datetime.weekday()
 
-        # Get schedule for current day
-        schedule = cls.SCHEDULES.get(current_day, {})
+            # Get schedule for current day
+            schedule = cls.SCHEDULES.get(current_day, {})
 
-        # Find matching time slot
-        for time_range, activity in schedule.items():
-            start_time, end_time = cls._parse_time_range(time_range)
+            # Find matching time slot
+            for time_range, activity in schedule.items():
+                start_time, end_time = cls._parse_time_range(time_range)
 
-            # Handle overnight activities (e.g., 23:00-06:00)
-            if start_time > end_time:
-                if current_time >= start_time or current_time <= end_time:
-                    return activity
-            else:
-                if start_time <= current_time <= end_time:
-                    return activity
+                # Handle overnight activities (e.g., 23:00-06:00)
+                if start_time > end_time:
+                    if current_time >= start_time or current_time <= end_time:
+                        return activity
+                else:
+                    if start_time <= current_time <= end_time:
+                        return activity
 
-        return None
+            return None
+        except CustomException as e:
+            logging.error(f"Error in Engineering Node : {str(e)}")
+            raise CustomException(e, sys) from e
 
     @classmethod
     def get_schedule_for_day(cls, day: int) -> Dict[str, str]:
@@ -75,7 +88,12 @@ class ScheduleContextGenerator:
         Returns:
             Dict[str, str]: Schedule for the specified day
         """
-        return cls.SCHEDULES.get(day, {})
+        try:
+            logging.info(f"Getting schedule for day: {day}")
+            return cls.SCHEDULES.get(day, {})
+        except CustomException as e:
+            logging.error(f"Error in Engineering Node : {str(e)}")
+            raise CustomException(e, sys) from e
     
 
 if __name__ == "__main__":

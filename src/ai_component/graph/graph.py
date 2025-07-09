@@ -79,10 +79,8 @@ def create_async_workflow_graph():
     # After using tools, return to DiseaseNode
     graph_builder.add_edge("disease_tools", "DiseaseNode")
     
-    # GeneralNode goes to END
     graph_builder.add_edge("GeneralNode", END)
-
-    # Compile with memory saver for persistent conversation history
+    
     return graph_builder.compile(checkpointer=memory_saver)
 
 
