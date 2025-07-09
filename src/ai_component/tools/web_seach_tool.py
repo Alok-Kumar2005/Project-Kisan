@@ -12,5 +12,5 @@ os.environ["TAVILY_API_KEY"] = os.getenv("TAVILY_API_KEY")
 
 web_tool = TavilySearch(
     max_results=max_result,
-    topic="general",
+    topic="news",
 )

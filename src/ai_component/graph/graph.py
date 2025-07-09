@@ -13,7 +13,8 @@ from src.ai_component.graph.nodes import (
     route_node,
     context_injestion_node,
     GeneralNode,
-    DiseaseNode
+    DiseaseNode,
+    WeatherNode
 )
 from src.ai_component.graph.edges import select_workflow
 import asyncio
@@ -22,6 +23,7 @@ from typing import Optional
 # Global memory saver instance
 memory_saver = MemorySaver()
 disease_tools = ToolNode(tools=[web_tool, rag_tool])
+weather_tools = ToolNode(tools=[web_tool])
 
 def should_continue(state: AICompanionState) -> str:
     """
@@ -50,7 +52,9 @@ def create_async_workflow_graph():
     graph_builder.add_node("context_injestion_node", context_injestion_node)
     graph_builder.add_node("GeneralNode", GeneralNode)
     graph_builder.add_node("DiseaseNode", DiseaseNode)
+    graph_builder.add_node("WeatherNode", WeatherNode)  
     graph_builder.add_node("disease_tools", disease_tools)
+    graph_builder.add_node("weather_tools", weather_tools) 
 
     # Adding edges
     graph_builder.add_edge(START, "route_node")
@@ -61,8 +65,9 @@ def create_async_workflow_graph():
         select_workflow,
         {
             "GeneralNode": "GeneralNode",
-            "DiseaseNode": "DiseaseNode", 
-            "DefaultWorkflow": "GeneralNode"  # Default case
+            "DiseaseNode": "DiseaseNode",
+            "WeatherNode": "WeatherNode",  
+            "DefaultWorkflow": "GeneralNode"
         }
     )
     
@@ -75,9 +80,18 @@ def create_async_workflow_graph():
             "__end__": END
         }
     )
+    graph_builder.add_conditional_edges(
+        "WeatherNode", 
+        should_continue,
+        {
+            "tools": "weather_tools",
+            "__end__": END
+        }
+    )
     
     # After using tools, return to DiseaseNode
     graph_builder.add_edge("disease_tools", "DiseaseNode")
+    graph_builder.add_edge("weather_tools", "WeatherNode")
     
     graph_builder.add_edge("GeneralNode", END)
     
@@ -133,7 +147,7 @@ async def process_query_async(
 if __name__ == "__main__":
     async def test_async_execution():
         # Simple test
-        query = "In my cauliflower there are some fungus are found can you suggest some medicine for that?"
+        query = "Can you tell me about the today temperature and forecase the next few days weather in Varanasi?"
         result = await process_query_async(query, workflow="DiseaseNode")
         print("Simple test result:")
         # Print the last AI message

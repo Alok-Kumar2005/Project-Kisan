@@ -18,7 +18,9 @@ def select_workflow(state: AICompanionState) -> str:
             return "GeneralNode"
         elif workflow == "DiseaseNode":
             return "DiseaseNode"
-        else:
+        elif workflow == "WeatherNode":
+            return "WeatherNode"
+        else:   
             return "DefaultWorkflow" 
         logging.info(f"Selected workflow: {workflow}")
     except CustomException as e:

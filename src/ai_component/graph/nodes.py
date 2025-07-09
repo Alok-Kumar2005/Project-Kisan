@@ -2,11 +2,12 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
+from datetime import datetime
 from src.ai_component.graph.utils.chains import async_router_chain
 from src.ai_component.llm import LLMChainFactory
 from src.ai_component.modules.schedule.context_generation import ScheduleContextGenerator
 from src.ai_component.graph.state import AICompanionState
-from src.ai_component.core.prompts import general_template, disease_template
+from src.ai_component.core.prompts import general_template, disease_template, weather_template
 from src.ai_component.tools.web_seach_tool import web_tool
 from src.ai_component.tools.rag_tool import rag_tool
 from src.ai_component.logger import logging
@@ -173,4 +174,95 @@ async def DiseaseNode(state: AICompanionState):
                 }
     except CustomException as e:
         logging.error(f"Error in Engineering Node : {str(e)}")
+        raise CustomException(e, sys) from e
+    
+
+async def WeatherNode(state: AICompanionState):
+    """
+    Weather node to handle queries related to weather conditions, forecasts, or climate-related information.
+    It uses the web search tool to find the latest weather data and provides a response.
+    """
+    try:
+        logging.info("Calling Weather Node")
+        
+        messages = state["messages"]
+        
+        # Check if the last message is a tool message (result from web search)
+        if messages and isinstance(messages[-1], ToolMessage):
+            # Process the tool results and generate final response
+            query = ""
+            tool_results = []
+            
+            # Find the original human message and collect tool results
+            for msg in reversed(messages):
+                if isinstance(msg, HumanMessage):
+                    query = msg.content
+                    break
+                elif isinstance(msg, ToolMessage):
+                    tool_results.append(f"Search Result: {msg.content}")
+            
+            # Create enhanced prompt with tool results
+            enhanced_template = f"""
+{weather_template}
+
+Original Query: {{query}}
+
+Weather Search Results:
+{{tool_results}}
+
+Based on the search results above, provide a comprehensive weather report with current conditions and/or forecast as requested.
+"""
+            
+            prompt = PromptTemplate(
+                input_variables=["query", "tool_results", "date"],
+                template=enhanced_template
+            )
+            
+            factory = LLMChainFactory(model_type="gemini")
+            chain = await factory.get_llm_chain_async(prompt)
+            response = await chain.ainvoke({
+                "query": query,
+                "tool_results": "\n\n".join(tool_results),
+                "date": datetime.now().strftime("%Y-%m-%d")
+            })
+            
+            return {
+                "messages": [AIMessage(content=response.content)]
+            }
+        
+        else:
+            # Initial processing - use web search tool to get weather data
+            query = messages[-1].content if messages else ""
+            
+            # Use LLM with web search tool to process the weather query
+            prompt = PromptTemplate(
+                input_variables=["query", "date"],
+                template=weather_template
+            )
+            
+            tools = [web_tool]  # Only web search tool for weather
+            factory = LLMChainFactory(model_type="gemini")
+            chain = await factory.get_llm_tool_chain(prompt, tools)
+            response = await chain.ainvoke({
+                "query": query,
+                "date": datetime.now().strftime("%Y-%m-%d")
+            })
+            
+            # Check if the response contains tool calls
+            if hasattr(response, 'tool_calls') and response.tool_calls:
+                # Return the AI message with tool calls
+                return {
+                    "messages": [response]
+                }
+            else:
+                # Direct response without tools
+                return {
+                    "messages": [AIMessage(content=response.content)]
+                }
+                
+    except CustomException as e:
+        logging.error(f"Error in Weather Node: {str(e)}")
+        raise CustomException(e, sys) from e
+    except Exception as e:
+        logging.error(f"Unexpected error in Weather Node: {str(e)}")
         raise CustomException(e, sys) from e
