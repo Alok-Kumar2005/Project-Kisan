@@ -23,6 +23,19 @@ from typing import Optional
 memory_saver = MemorySaver()
 disease_tools = ToolNode(tools=[web_tool, rag_tool])
 
+def should_continue(state: AICompanionState) -> str:
+    """
+    Determine if we should continue to tools or end the conversation.
+    """
+    messages = state["messages"]
+    last_message = messages[-1]
+    
+    # Check if the last message has tool calls
+    if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+        return "tools"
+    else:
+        return "__end__"
+
 @lru_cache(maxsize=1)
 def create_async_workflow_graph():
     """
@@ -43,7 +56,6 @@ def create_async_workflow_graph():
     graph_builder.add_edge(START, "route_node")
     graph_builder.add_edge("route_node", "context_injestion_node")
     
-    # Conditional edge from context_injestion_node to select workflow
     graph_builder.add_conditional_edges(
         "context_injestion_node", 
         select_workflow,
@@ -54,9 +66,10 @@ def create_async_workflow_graph():
         }
     )
     
+    # Use our custom should_continue function for DiseaseNode
     graph_builder.add_conditional_edges(
         "DiseaseNode", 
-        tools_condition,
+        should_continue,
         {
             "tools": "disease_tools",
             "__end__": END
@@ -83,7 +96,6 @@ except Exception as e:
     print(f"Error: {e}")
 
 
-
 async def process_query_async(
     query: str, 
     workflow: str = "GeneralNode",
@@ -103,7 +115,7 @@ async def process_query_async(
         The result from the async graph execution
     """
     initial_state = {
-        "messages": query,
+        "messages": [{"role": "user", "content": query}],
         "current_activity": "",
         "workflow": workflow
     }
@@ -124,11 +136,12 @@ if __name__ == "__main__":
     async def test_async_execution():
         # Simple test
         query = "In my cauliflower there are some fungus are found can you suggest some medicine for that?"
-        result = await process_query_async(query)
+        result = await process_query_async(query, workflow="DiseaseNode")
         print("Simple test result:")
-        print(result["messages"][-2].content)
-        print(result["messages"][-1].content)
+        # Print the last AI message
+        for msg in reversed(result["messages"]):
+            if hasattr(msg, 'content') and msg.content:
+                print(msg.content)
+                break
         
-        
-    
     asyncio.run(test_async_execution())

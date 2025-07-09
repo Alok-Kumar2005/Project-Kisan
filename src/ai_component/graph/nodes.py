@@ -11,6 +11,7 @@ from src.ai_component.tools.web_seach_tool import web_tool
 from src.ai_component.tools.rag_tool import rag_tool
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 
 
 
@@ -72,23 +73,79 @@ async def GeneralNode(state: AICompanionState) -> AIMessage:
         "query": query
     })
     return {
-        "messages": response.content,
+        "messages":[AIMessage(content=response.content)],
     }
 
-async def DiseaseNode(state: AICompanionState) -> AIMessage:
+async def DiseaseNode(state: AICompanionState):
     """
-    These ndode will help to handle queries related to plant diseases, symptoms, or treatments.
-    it took a string of problem in plants from directly to image, voice or text and return the solution in a string format.
+    Disease node to handle queries related to plant diseases, symptoms, or treatments.
+    It processes plant problems from text and can use tools to find solutions.
     """
-    query = state["messages"][-1].content if state["messages"] else ""
-    prompt = PromptTemplate(
-        input_variables=["query"],
-        template=disease_template
-    )
-    tools = [web_tool, rag_tool]
-    factory = LLMChainFactory(model_type="gemini")
-    chain = await factory.get_llm_tool_chain(prompt, tools)
-    response = await chain.ainvoke({"query": query})
-    return {
-        "messages": response.content
-    }
+    messages = state["messages"]
+    
+    # Check if the last message is a tool message (result from tools)
+    if messages and isinstance(messages[-1], ToolMessage):
+        query = ""
+        tool_results = []
+        
+        for msg in reversed(messages):
+            if isinstance(msg, HumanMessage):
+                query = msg.content
+                break
+            elif isinstance(msg, ToolMessage):
+                tool_results.append(f"Tool: {msg.name}\nResult: {msg.content}")
+        
+        # Create enhanced prompt with tool results
+        enhanced_template = f"""
+{disease_template}
+
+Original Query: {{query}}
+
+Tool Results:
+{{tool_results}}
+
+Based on the tool results above, provide a comprehensive answer about the plant disease and treatment recommendations.
+"""
+        
+        prompt = PromptTemplate(
+            input_variables=["query", "tool_results"],
+            template=enhanced_template
+        )
+        
+        factory = LLMChainFactory(model_type="gemini")
+        chain = await factory.get_llm_chain_async(prompt)
+        response = await chain.ainvoke({
+            "query": query,
+            "tool_results": "\n\n".join(tool_results)
+        })
+        
+        return {
+            "messages": [AIMessage(content=response.content)]
+        }
+    
+    else:
+        # Initial processing - decide whether to use tools or respond directly
+        query = messages[-1].content if messages else ""
+        
+        # Use LLM with tools to process the query
+        prompt = PromptTemplate(
+            input_variables=["query"],
+            template=disease_template
+        )
+        
+        tools = [web_tool, rag_tool]
+        factory = LLMChainFactory(model_type="gemini")
+        chain = await factory.get_llm_tool_chain(prompt, tools)
+        response = await chain.ainvoke({"query": query})
+        
+        # Check if the response contains tool calls
+        if hasattr(response, 'tool_calls') and response.tool_calls:
+            # Return the AI message with tool calls
+            return {
+                "messages": [response]
+            }
+        else:
+            # Direct response without tools
+            return {
+                "messages": [AIMessage(content=response.content)]
+            }
