@@ -9,7 +9,8 @@ def select_workflow(state: AICompanionState) -> str:
     Selects the workflow based on the current state.
     This function is used to determine which workflow to execute next.
     """
-    if state.workflow == "GeneralNode":
+    workflow = state.get("workflow")
+    if workflow == "GeneralNode":
         return "GeneralNode"
     else:
         return "DefaultWorkflow" 

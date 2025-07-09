@@ -22,7 +22,7 @@ def create_workflow_graph():
     ## adding edges
     graph_builder.add_edge(START, "route_node")
     graph_builder.add_edge("route_node", "context_injestion_node")
-    graph_builder.add_conditional_edge(
+    graph_builder.add_conditional_edges(
         "context_injestion_node",select_workflow)
     graph_builder.add_edge("GeneralNode", END)
 
@@ -40,4 +40,5 @@ if __name__ == "__main__":
     }
     result = graph.invoke(initial_state)
 
-    print(result)
+    # print(result)
+    print(result["messages"][-1])

@@ -9,6 +9,6 @@ gemini_model_kwargs = {
 groq_model_name = "gemma2-9b-it"
 groq_model_kwargs = {
     "temperature": 0.2,
-    "top_p": 0.95,
+    # "top_p": 0.95,
     "max_tokens": 512
 }
