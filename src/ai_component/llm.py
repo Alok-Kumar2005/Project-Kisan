@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
+
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
@@ -6,7 +10,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import os
 
-from config import (
+from src.ai_component.config import (
     gemini_model_kwargs,
     gemini_model_name,
     groq_model_kwargs,
