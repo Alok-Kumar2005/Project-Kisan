@@ -10,6 +10,10 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import os
 
+from typing import Annotated
+from langchain_core.messages import BaseMessage
+from typing_extensions import TypedDict
+
 from src.ai_component.config import (
     gemini_model_kwargs,
     gemini_model_name,
@@ -18,7 +22,6 @@ from src.ai_component.config import (
 )
 
 load_dotenv()
-
 
 class LLMChainFactory:
     def __init__(self, model_type: str = "gemini"):
@@ -33,24 +36,18 @@ class LLMChainFactory:
         self.google_api_key = os.getenv("GOOGLE_API_KEY")
         self.groq_api_key = os.getenv("GROQ_API_KEY")
 
-    def get_llm_chain(self, prompt: PromptTemplate | ChatPromptTemplate):
+    def _get_llm(self):
         """
-        Returns a LangChain chain object based on the selected model type.
-        
-        Args:
-            prompt: PromptTemplate object
-        
-        Returns:
-            A LangChain chain that can be invoked with input variables.
+        Returns the appropriate LLM instance based on model type.
         """
         if self.model_type == "gemini":
-            llm = ChatGoogleGenerativeAI(
+            return ChatGoogleGenerativeAI(
                 model=self.gemini_model_name,
                 google_api_key=self.google_api_key,
                 **self.gemini_model_kwargs 
             )
         elif self.model_type == "groq":
-            llm = ChatGroq(
+            return ChatGroq(
                 model=self.groq_model_name,
                 api_key=self.groq_api_key,
                 **self.groq_model_kwargs  
@@ -58,40 +55,6 @@ class LLMChainFactory:
         else:
             raise ValueError(f"Unsupported model type: {self.model_type}")
 
-        chain = prompt | llm
-        return chain
-
-    def get_structured_llm_chain(self, prompt: PromptTemplate | ChatPromptTemplate, output_schema: BaseModel):
-        """
-        Returns a LangChain chain that returns structured output based on a Pydantic model.
-        
-        Args:
-            prompt: PromptTemplate object
-            output_schema: Pydantic BaseModel class defining the output structure
-        
-        Returns:
-            A LangChain chain that returns structured output according to the schema.
-        """
-
-        if self.model_type == "gemini":
-            llm = ChatGoogleGenerativeAI(
-                model=self.gemini_model_name,
-                google_api_key=self.google_api_key,
-                **self.gemini_model_kwargs  
-            )
-        elif self.model_type == "groq":
-            llm = ChatGroq(
-                model=self.groq_model_name,
-                api_key=self.groq_api_key,
-                **self.groq_model_kwargs 
-            )
-        
-        structured_llm = llm.with_structured_output(output_schema)
-        chain = prompt | structured_llm
-        
-        return chain
-
-    # NEW: Async versions of the chain methods
     async def get_llm_chain_async(self, prompt: PromptTemplate | ChatPromptTemplate):
         """
         Returns an async LangChain chain object based on the selected model type.
@@ -102,21 +65,7 @@ class LLMChainFactory:
         Returns:
             An async LangChain chain that can be invoked with input variables.
         """
-        if self.model_type == "gemini":
-            llm = ChatGoogleGenerativeAI(
-                model=self.gemini_model_name,
-                google_api_key=self.google_api_key,
-                **self.gemini_model_kwargs 
-            )
-        elif self.model_type == "groq":
-            llm = ChatGroq(
-                model=self.groq_model_name,
-                api_key=self.groq_api_key,
-                **self.groq_model_kwargs  
-            )
-        else:
-            raise ValueError(f"Unsupported model type: {self.model_type}")
-
+        llm = self._get_llm()
         chain = prompt | llm
         return chain
 
@@ -131,23 +80,26 @@ class LLMChainFactory:
         Returns:
             An async LangChain chain that returns structured output according to the schema.
         """
-
-        if self.model_type == "gemini":
-            llm = ChatGoogleGenerativeAI(
-                model=self.gemini_model_name,
-                google_api_key=self.google_api_key,
-                **self.gemini_model_kwargs  
-            )
-        elif self.model_type == "groq":
-            llm = ChatGroq(
-                model=self.groq_model_name,
-                api_key=self.groq_api_key,
-                **self.groq_model_kwargs 
-            )
-        
+        llm = self._get_llm()
         structured_llm = llm.with_structured_output(output_schema)
         chain = prompt | structured_llm
         
+        return chain
+
+    async def get_llm_tool_chain(self, prompt: PromptTemplate | ChatPromptTemplate, tools: list):
+        """
+        Returns a LangChain chain that integrates tools with the LLM.
+        
+        Args:
+            prompt: PromptTemplate object
+            tools: List of tools to integrate with the LLM
+        
+        Returns:
+            A LangChain chain that can be invoked with input variables and uses the specified tools.
+        """
+        llm = self._get_llm()
+        llm_with_tools = llm.bind_tools(tools)
+        chain = prompt | llm_with_tools 
         return chain
 
 

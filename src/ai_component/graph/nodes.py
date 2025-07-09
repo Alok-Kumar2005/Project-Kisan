@@ -6,9 +6,12 @@ from src.ai_component.graph.utils.chains import async_router_chain
 from src.ai_component.llm import LLMChainFactory
 from src.ai_component.modules.schedule.context_generation import ScheduleContextGenerator
 from src.ai_component.graph.state import AICompanionState
-from src.ai_component.core.prompts import general_template
+from src.ai_component.core.prompts import general_template, disease_template
+from src.ai_component.tools.web_seach_tool import tool as web_search_tool
+from src.ai_component.tools.rag_tool import rag_tool
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
+
 
 
 
@@ -21,7 +24,7 @@ async def route_node(state: AICompanionState) -> str:
     query = state["messages"][-1].content if state["messages"] else ""
     
     if not query:
-        return "GeneralNode"  # Default to GeneralNode if no query is present
+        return "GeneralNode"  
     
     chain = await async_router_chain()
     response = await chain.ainvoke({"query": query})
@@ -70,4 +73,22 @@ async def GeneralNode(state: AICompanionState) -> AIMessage:
     })
     return {
         "messages": response.content,
+    }
+
+async def DiseaseNode(state: AICompanionState) -> AIMessage:
+    """
+    These ndode will help to handle queries related to plant diseases, symptoms, or treatments.
+    it took a string of problem in plants from directly to image, voice or text and return the solution in a string format.
+    """
+    query = state["messages"][-1].content if state["messages"] else ""
+    prompt = PromptTemplate(
+        input_variables=["query"],
+        template=disease_template
+    )
+    tools = [web_search_tool, rag_tool]
+    factory = LLMChainFactory(model_type="gemini")
+    chain = await factory.get_llm_tool_chain(prompt, tools)
+    response = await chain.ainvoke({"query": query})
+    return {
+        "messages": response.content
     }

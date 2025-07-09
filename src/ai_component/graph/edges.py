@@ -12,5 +12,7 @@ def select_workflow(state: AICompanionState) -> str:
     workflow = state.get("workflow")
     if workflow == "GeneralNode":
         return "GeneralNode"
+    elif workflow == "DiseaseNode":
+        return "DiseaseNode"
     else:
         return "DefaultWorkflow" 

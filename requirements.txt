@@ -4,6 +4,7 @@ langchain-google-genai
 langchain-groq
 langchain-qdrant
 langchain-core
+langchain-tavily
 langgraph
 pypdf
 pydantic

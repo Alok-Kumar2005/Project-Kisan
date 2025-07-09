@@ -6,10 +6,14 @@ from functools import lru_cache
 from langgraph.graph import END, START, StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 from src.ai_component.graph.state import AICompanionState
+from src.ai_component.tools.web_seach_tool import tool as web_search_tool
+from src.ai_component.tools.rag_tool import rag_tool
+from langgraph.prebuilt import ToolNode, tools_condition
 from src.ai_component.graph.nodes import (
     route_node,
     context_injestion_node,
-    GeneralNode
+    GeneralNode,
+    DiseaseNode
 )
 from src.ai_component.graph.edges import select_workflow
 import asyncio
@@ -17,6 +21,7 @@ from typing import Optional
 
 # Global memory saver instance
 memory_saver = MemorySaver()
+disease_tools = ToolNode(tools=[web_search_tool, rag_tool])
 
 @lru_cache(maxsize=1)
 def create_async_workflow_graph():
@@ -26,15 +31,42 @@ def create_async_workflow_graph():
     while maintaining conversation history.
     """
     graph_builder = StateGraph(AICompanionState)
+    
+    # Add nodes
     graph_builder.add_node("route_node", route_node)
     graph_builder.add_node("context_injestion_node", context_injestion_node)
     graph_builder.add_node("GeneralNode", GeneralNode)
+    graph_builder.add_node("DiseaseNode", DiseaseNode)
+    graph_builder.add_node("disease_tools", disease_tools)
 
-    ## adding edges
+    # Adding edges
     graph_builder.add_edge(START, "route_node")
     graph_builder.add_edge("route_node", "context_injestion_node")
+    
+    # Conditional edge from context_injestion_node to select workflow
     graph_builder.add_conditional_edges(
-        "context_injestion_node", select_workflow)
+        "context_injestion_node", 
+        select_workflow,
+        {
+            "GeneralNode": "GeneralNode",
+            "DiseaseNode": "DiseaseNode", 
+            "DefaultWorkflow": "GeneralNode"  # Default case
+        }
+    )
+    
+    graph_builder.add_conditional_edges(
+        "DiseaseNode", 
+        tools_condition,
+        {
+            "tools": "disease_tools",
+            "__end__": END
+        }
+    )
+    
+    # After using tools, return to DiseaseNode
+    graph_builder.add_edge("disease_tools", "DiseaseNode")
+    
+    # GeneralNode goes to END
     graph_builder.add_edge("GeneralNode", END)
 
     # Compile with memory saver for persistent conversation history
@@ -42,6 +74,14 @@ def create_async_workflow_graph():
 
 
 async_graph = create_async_workflow_graph()
+try:
+    img_data = async_graph.get_graph().draw_mermaid_png()
+    with open("workflow.png", "wb") as f:
+        f.write(img_data)
+    print("Graph saved as workflow.png")
+except Exception as e:
+    print(f"Error: {e}")
+
 
 
 async def process_query_async(
@@ -80,80 +120,15 @@ async def process_query_async(
     return result
 
 
-async def get_conversation_history(thread_id: str = "default_thread"):
-    """
-    Retrieve the conversation history for a specific thread.
-    
-    Args:
-        thread_id: The thread identifier to get history for
-    
-    Returns:
-        List of conversation states
-    """
-    config = {
-        "configurable": {
-            "thread_id": thread_id
-        }
-    }
-    
-    # Get the conversation history
-    history = []
-    async for state in async_graph.aget_state_history(config):
-        history.append(state)
-    
-    return history
-
-
-async def clear_conversation_memory(thread_id: str = "default_thread"):
-    """
-    Clear the conversation memory for a specific thread.
-    
-    Args:
-        thread_id: The thread identifier to clear memory for
-    """
-    config = {
-        "configurable": {
-            "thread_id": thread_id
-        }
-    }
-    
-    # Clear the thread's memory
-    await memory_saver.adelete(config)
-
-
-async def get_current_state(thread_id: str = "default_thread"):
-    """
-    Get the current state of a conversation thread.
-    
-    Args:
-        thread_id: The thread identifier
-    
-    Returns:
-        Current state of the thread
-    """
-    config = {
-        "configurable": {
-            "thread_id": thread_id
-        }
-    }
-    
-    return await async_graph.aget_state(config)
-
-
 if __name__ == "__main__":
     async def test_async_execution():
         # Simple test
-        query = "Hi, how are you? What is your name and what are you doing?"
+        query = "In my cauliflower there are some fungus are found can you suggest some medicine for that?"
         result = await process_query_async(query)
         print("Simple test result:")
+        print(result["messages"][-2].content)
         print(result["messages"][-1].content)
         
-        print("\n=== Testing Memory Continuation ===")
-        result1 = await process_query_async("My favorite color is blue")
-        print(f"First: {result1['messages'][-1].content}")
-        
-        result2 = await process_query_async("What's my favorite color?")
-        print(f"Second: {result2['messages'][-1].content}")
         
     
     asyncio.run(test_async_execution())
