@@ -12,8 +12,9 @@ class Router(BaseModel):
         route_node: Literal['DiseaseNode', 'WeatherNode', 'CropNode', 'MarketNode', 'GeneralNode'] = Field(..., description="Just the type of node to route to, e.g., 'DiseaseNode")
 
 
-def router_chain() -> Literal["DiseaseNode", "WeatherNode", "CropNode", "MarketNode", 'GeneralNode']:
+async def async_router_chain() -> Literal["DiseaseNode", "WeatherNode", "CropNode", "MarketNode", 'GeneralNode']:
     """
+    Async version of router_chain.
     Return the node according to user query and the prompt
     """
     prompt = PromptTemplate(
@@ -22,16 +23,18 @@ def router_chain() -> Literal["DiseaseNode", "WeatherNode", "CropNode", "MarketN
     )
 
     factory = LLMChainFactory(model_type="groq")
-    chain = factory.get_structured_llm_chain(prompt, Router)
+    chain = await factory.get_structured_llm_chain_async(prompt, Router)
     
     return chain
 
 
 if __name__ == "__main__":
-    # Example usage
-    query = "What are the symptoms of leaf blight in rice?"
-    chain = router_chain()
-    response = chain.invoke({"query": query})
+    import asyncio
     
-    print(response.route_node) 
-    # This should print the type of node to route to, e.g., "DiseaseNode"
+    async def test_async():
+        query = "What are the symptoms of leaf blight in rice?"
+        chain = await async_router_chain()
+        response = await chain.ainvoke({"query": query})
+        print(f"Async result: {response.route_node}")
+
+    asyncio.run(test_async())
