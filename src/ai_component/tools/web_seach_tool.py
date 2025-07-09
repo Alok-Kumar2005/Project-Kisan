@@ -10,7 +10,7 @@ load_dotenv()
 os.environ["TAVILY_API_KEY"] = os.getenv("TAVILY_API_KEY")
 
 
-tool = TavilySearch(
+web_tool = TavilySearch(
     max_results=max_result,
     topic="general",
 )

@@ -6,7 +6,7 @@ from functools import lru_cache
 from langgraph.graph import END, START, StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 from src.ai_component.graph.state import AICompanionState
-from src.ai_component.tools.web_seach_tool import tool as web_search_tool
+from src.ai_component.tools.web_seach_tool import web_tool
 from src.ai_component.tools.rag_tool import rag_tool
 from langgraph.prebuilt import ToolNode, tools_condition
 from src.ai_component.graph.nodes import (
@@ -21,7 +21,7 @@ from typing import Optional
 
 # Global memory saver instance
 memory_saver = MemorySaver()
-disease_tools = ToolNode(tools=[web_search_tool, rag_tool])
+disease_tools = ToolNode(tools=[web_tool, rag_tool])
 
 @lru_cache(maxsize=1)
 def create_async_workflow_graph():

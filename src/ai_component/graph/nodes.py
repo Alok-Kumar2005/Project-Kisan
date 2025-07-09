@@ -7,7 +7,7 @@ from src.ai_component.llm import LLMChainFactory
 from src.ai_component.modules.schedule.context_generation import ScheduleContextGenerator
 from src.ai_component.graph.state import AICompanionState
 from src.ai_component.core.prompts import general_template, disease_template
-from src.ai_component.tools.web_seach_tool import tool as web_search_tool
+from src.ai_component.tools.web_seach_tool import web_tool
 from src.ai_component.tools.rag_tool import rag_tool
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
@@ -85,7 +85,7 @@ async def DiseaseNode(state: AICompanionState) -> AIMessage:
         input_variables=["query"],
         template=disease_template
     )
-    tools = [web_search_tool, rag_tool]
+    tools = [web_tool, rag_tool]
     factory = LLMChainFactory(model_type="gemini")
     chain = await factory.get_llm_tool_chain(prompt, tools)
     response = await chain.ainvoke({"query": query})
