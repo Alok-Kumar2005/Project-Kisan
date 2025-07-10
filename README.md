@@ -16,41 +16,43 @@ uv pip install -r requirements.txt
 src/ai_component/
 ├── core/
 │   ├── __init__.py
-│   ├── prompts.py          # System prompts and templates
-│   └── schedules.py        # Task scheduling logic
+│   ├── prompts.py              # System prompts and templates
+│   └── schedules.py            # Task scheduling logic
 ├── graph/
-│   ├── utils/              # Graph utility functions
+│   ├── utils/                  # Graph utility functions
 │   ├── __init__.py
-│   ├── edges.py            # Graph edge definitions
-│   ├── graph.py            # Main graph implementation
-│   ├── nodes.py            # Node definitions and logic
-│   └── state.py            # State management
+│   ├── edges.py                # Graph edge definitions
+│   ├── graph.py                # Main graph implementation
+│   ├── nodes.py                # Node definitions and logic
+│   └── state.py                # State management
 ├── modules/
-│   ├── memory/             # Memory system components
-│   └── schedule/           # Scheduling modules
-└── tools/
-│   ├── __init__.py      
-│   ├── mandi_report_tool.py      
-│   ├── rag_tool.py      
-│   ├── weather_tool.py       
+│   ├── memory/                 # Memory system components
+│   └── schedule/               # Scheduling modules
+├── tools/
+│   ├── __init__.py
+│   ├── mandi_report_tool.py
+│   ├── rag_tool.py
+│   ├── weather_tool.py
 │   └── web_search_tool.py
 ├── __init__.py
-├── config.py           # Configuration settings
-├── exception.py        # Custom exceptions
-├── llm.py             # LLM integration
-└── logger.py          # Logging utilities
+├── config.py                   # Configuration settings
+├── exception.py                # Custom exceptions
+├── llm.py                      # LLM integration
+└── logger.py                   # Logging utilities
 
-# Root level files
+
+### Root level files
 ├── .gitignore
 ├── .python-version
 ├── LICENSE
 ├── README.md
-├── main.py                 # Application entry point
-├── pyproject.toml          # Project configuration
-├── requirements.txt        # Python dependencies
-├── setup.py               # Package setup
-├── uv.lock                # UV 
-└── workflow.png           # Workflow diagram
+├── main.py                     # Application entry point
+├── pyproject.toml              # Project configuration
+├── requirements.txt            # Python dependencies
+├── setup.py                    # Package setup
+├── uv.lock                     # UV lock file
+└── workflow.png                # Workflow diagram
+
 
 
 ## 🏗 Architecture
