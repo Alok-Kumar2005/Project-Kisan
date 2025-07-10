@@ -55,13 +55,22 @@ def select_output_workflow(state: AICompanionState) -> str:
 
 def should_continue(state: AICompanionState) -> str:
     """
-    Determine if we should continue to tools or end the conversation.
+    Determine if we should continue to tools or move to memory ingestion.
+    This function must return values that match the conditional edges mapping.
     """
-    messages = state["messages"]
-    last_message = messages[-1]
-    
-    # Check if the last message has tool calls
-    if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
-        return "tools"
-    else:
-        return "__end__"
+    try:
+        messages = state["messages"]
+        if not messages:
+            return "memory"
+            
+        last_message = messages[-1]
+        
+        # Check if the last message has tool calls
+        if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+            return "tools"
+        else:
+            return "memory"  
+            
+    except Exception as e:
+        logging.error(f"Error in should_continue: {str(e)}")
+        return "memory" 

@@ -23,6 +23,10 @@ from src.ai_component.config import (
 
 load_dotenv()
 
+os.environ['LANGSMITH_API_KEY'] = os.getenv("LANGSMITH_API_KEY")
+os.environ['LANGSMITH_TRACING'] = os.getenv("LANGSMITH_TRACING")
+os.environ['LANGSMITH_PROJECT'] = os.getenv("LANGSMITH_PROJECT")
+
 class LLMChainFactory:
     def __init__(self, model_type: str = "gemini"):
         """

@@ -100,15 +100,17 @@ def create_async_workflow_graph():
         }
     )
     
-    # After using tools, return to DiseaseNode
+    # After using tools, return to respective nodes
     graph_builder.add_edge("disease_tools", "DiseaseNode")
     graph_builder.add_edge("weather_tools", "WeatherNode")
     graph_builder.add_edge("mandi_tools", "MandiNode")
     
+    # Direct edges from nodes that don't use tools
     graph_builder.add_edge("CarbonFootprintNode", "MemoryIngestionNode")
     graph_builder.add_edge("GovSchemeNode", "MemoryIngestionNode")
     graph_builder.add_edge("GeneralNode", "MemoryIngestionNode")
 
+    # Output workflow selection
     graph_builder.add_conditional_edges(
         "MemoryIngestionNode",
         select_output_workflow,
@@ -119,6 +121,7 @@ def create_async_workflow_graph():
         }
     )
 
+    # End the graph after output nodes
     graph_builder.add_edge("ImageNode", END)
     graph_builder.add_edge("VoiceNode", END)
     graph_builder.add_edge("TextNode", END)
@@ -136,50 +139,50 @@ except Exception as e:
     print(f"Error: {e}")
 
 
-# async def process_query_async(
-#     query: str, 
-#     workflow: str = "GeneralNode",
-#     thread_id: str = "default_thread",
-#     config: Optional[dict] = None
-# ):
-#     """
-#     Async function to process a query using the async workflow graph with memory.
+async def process_query_async(
+    query: str, 
+    workflow: str = "GeneralNode",
+    thread_id: str = "default_thread",
+    config: Optional[dict] = None
+):
+    """
+    Async function to process a query using the async workflow graph with memory.
     
-#     Args:
-#         query: The user's query
-#         workflow: The workflow to use (default: "GeneralNode")
-#         thread_id: Unique identifier for the conversation thread
-#         config: Optional configuration dict for the graph execution
+    Args:
+        query: The user's query
+        workflow: The workflow to use (default: "GeneralNode")
+        thread_id: Unique identifier for the conversation thread
+        config: Optional configuration dict for the graph execution
     
-#     Returns:
-#         The result from the async graph execution
-#     """
-#     initial_state = {
-#         "messages": [{"role": "user", "content": query}],
-#         "current_activity": "",
-#         "workflow": workflow
-#     }
+    Returns:
+        The result from the async graph execution
+    """
+    initial_state = {
+        "messages": [{"role": "user", "content": query}],
+        "current_activity": "",
+        "workflow": workflow
+    }
     
-#     # Configuration for memory management
-#     if config is None:
-#         config = {
-#             "configurable": {
-#                 "thread_id": thread_id
-#             }
-#         }
+    # Configuration for memory management
+    if config is None:
+        config = {
+            "configurable": {
+                "thread_id": thread_id
+            }
+        }
     
-#     result = await async_graph.ainvoke(initial_state, config=config)
-#     return result
+    result = await async_graph.ainvoke(initial_state, config=config)
+    return result
 
 
-# if __name__ == "__main__":
-#     async def test_async_execution():
-#         # Simple test
-#         query = "can you tell me about the gov schema for farmers write now by government of india?"
-#         result = await process_query_async(query)
-#         for msg in reversed(result["messages"]):
-#             if hasattr(msg, 'content') and msg.content:
-#                 print(msg.content)
-#                 break
+if __name__ == "__main__":
+    async def test_async_execution():
+        # Simple test
+        query = "Can you tell me the forecast of the the next 4 days weather condition of varanasi, uttar pradesh india?"
+        result = await process_query_async(query)
+        for msg in reversed(result["messages"]):
+            if hasattr(msg, 'content') and msg.content:
+                print(msg.content)
+                break
         
-#     asyncio.run(test_async_execution())
+    asyncio.run(test_async_execution())

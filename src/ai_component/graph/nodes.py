@@ -213,17 +213,18 @@ async def WeatherNode(state: AICompanionState):
                 Based on the search results above, provide a comprehensive weather report with current conditions and/or forecast as requested.
                 """
             
+            # Fix: Include all variables that weather_template uses
             prompt = PromptTemplate(
-                input_variables=["date", "query", "tool_results" ],
+                input_variables=["date", "query", "tool_results"],  # Include "date" since weather_template uses it
                 template=enhanced_template
             )
             
-            factory = LLMChainFactory(model_type="gemini")
+            factory = LLMChainFactory(model_type="groq")
             chain = await factory.get_llm_chain_async(prompt)
             response = await chain.ainvoke({
                 "query": query,
                 "tool_results": "\n\n".join(tool_results),
-                "date": datetime.now().strftime("%Y-%m-%d")
+                "date": datetime.now().strftime("%Y-%m-%d")  # Include date since weather_template needs it
             })
             logging.info(f"Response from WeatherNode without tool calling: {response}")
             return {
@@ -234,17 +235,18 @@ async def WeatherNode(state: AICompanionState):
             # Initial processing - use web search tool to get weather data
             query = messages[-1].content if messages else ""
             
+            # Fix: Include date since weather_template uses it
             prompt = PromptTemplate(
-                input_variables=["date", "query"],
+                input_variables=["date", "query"],  # Include date since weather_template uses it
                 template=weather_template
             )
             
             tools = [weather_forecast_tool, weather_report_tool]
-            factory = LLMChainFactory(model_type="gemini")
+            factory = LLMChainFactory(model_type="groq")
             chain = await factory.get_llm_tool_chain(prompt, tools)
             response = await chain.ainvoke({
                 "query": query,
-                "date": datetime.now().strftime("%Y-%m-%d")
+                "date": datetime.now().strftime("%Y-%m-%d")  # Include date since weather_template needs it
             })
             logging.info(f"Response from WeatherNode with tool calling: {response}")
             # Check if the response contains tool calls
@@ -263,7 +265,7 @@ async def WeatherNode(state: AICompanionState):
     except Exception as e:
         logging.error(f"Unexpected error in Weather Node: {str(e)}")
         raise CustomException(e, sys) from e
-    
+                
 
 async def MandiNode(state: AICompanionState) -> AICompanionState:
     """
