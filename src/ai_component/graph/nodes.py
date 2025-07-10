@@ -10,6 +10,7 @@ from src.ai_component.graph.state import AICompanionState
 from src.ai_component.core.prompts import general_template, disease_template, weather_template
 from src.ai_component.tools.web_seach_tool import web_tool
 from src.ai_component.tools.rag_tool import rag_tool
+from src.ai_component.tools.weather_tool import weather_forecast_tool, weather_report_tool
 from src.ai_component.logger import logging
 from src.ai_component.exception import CustomException
 from langchain_core.messages import HumanMessage, AIMessage
@@ -189,11 +190,8 @@ async def WeatherNode(state: AICompanionState):
         
         # Check if the last message is a tool message (result from web search)
         if messages and isinstance(messages[-1], ToolMessage):
-            # Process the tool results and generate final response
             query = ""
             tool_results = []
-            
-            # Find the original human message and collect tool results
             for msg in reversed(messages):
                 if isinstance(msg, HumanMessage):
                     query = msg.content
@@ -201,7 +199,6 @@ async def WeatherNode(state: AICompanionState):
                 elif isinstance(msg, ToolMessage):
                     tool_results.append(f"Search Result: {msg.content}")
             
-            # Create enhanced prompt with tool results
             enhanced_template = f"""
 {weather_template}
 
@@ -234,13 +231,12 @@ Based on the search results above, provide a comprehensive weather report with c
             # Initial processing - use web search tool to get weather data
             query = messages[-1].content if messages else ""
             
-            # Use LLM with web search tool to process the weather query
             prompt = PromptTemplate(
                 input_variables=["query", "date"],
                 template=weather_template
             )
             
-            tools = [web_tool]  # Only web search tool for weather
+            tools = [weather_forecast_tool, weather_report_tool]
             factory = LLMChainFactory(model_type="gemini")
             chain = await factory.get_llm_tool_chain(prompt, tools)
             response = await chain.ainvoke({
@@ -250,12 +246,10 @@ Based on the search results above, provide a comprehensive weather report with c
             
             # Check if the response contains tool calls
             if hasattr(response, 'tool_calls') and response.tool_calls:
-                # Return the AI message with tool calls
                 return {
                     "messages": [response]
                 }
             else:
-                # Direct response without tools
                 return {
                     "messages": [AIMessage(content=response.content)]
                 }

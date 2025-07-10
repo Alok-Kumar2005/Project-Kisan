@@ -15,3 +15,7 @@ groq_model_kwargs = {
 
 ## tavily config
 max_result = 2
+
+## weather config
+DEFAULT_FORECAST_COUNT = 40
+DEFAULT_DAYS = 5

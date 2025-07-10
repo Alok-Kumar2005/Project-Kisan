@@ -8,6 +8,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from src.ai_component.graph.state import AICompanionState
 from src.ai_component.tools.web_seach_tool import web_tool
 from src.ai_component.tools.rag_tool import rag_tool
+from src.ai_component.tools.weather_tool import weather_forecast_tool, weather_report_tool
 from langgraph.prebuilt import ToolNode, tools_condition
 from src.ai_component.graph.nodes import (
     route_node,
@@ -23,7 +24,7 @@ from typing import Optional
 # Global memory saver instance
 memory_saver = MemorySaver()
 disease_tools = ToolNode(tools=[web_tool, rag_tool])
-weather_tools = ToolNode(tools=[web_tool])
+weather_tools = ToolNode(tools=[weather_forecast_tool, weather_report_tool])
 
 def should_continue(state: AICompanionState) -> str:
     """
@@ -147,10 +148,8 @@ async def process_query_async(
 if __name__ == "__main__":
     async def test_async_execution():
         # Simple test
-        query = "Can you tell me about the today temperature of varanasi, uttar pradesh, india?"
+        query = "can you tell me today weather of varanasi, uttar pradesh, india?"
         result = await process_query_async(query, workflow="DiseaseNode")
-        print("Simple test result:")
-        # Print the last AI message
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:
                 print(msg.content)
