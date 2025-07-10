@@ -12,10 +12,12 @@ from src.ai_component.logger import logging
 from src.ai_component.exception import CustomException
 
 class Router(BaseModel):
-        route_node: Literal['DiseaseNode', 'WeatherNode', 'MandiNode', 'GeneralNode'] = Field(..., description="Just the type of node to route to, e.g., 'DiseaseNode")
+        route_node: Literal['DiseaseNode', 'WeatherNode', 'MandiNode', 'GovSchemeNode', 'CarbonFootprintNode', 'GeneralNode'] = Field(..., description="Just the type of node to route to, e.g., 'DiseaseNode")
+        output: Literal["TextNode", "ImageNode", "VoiceNode"] = Field(..., description="Give in which format user want answer")
 
 
-async def async_router_chain() -> Literal["DiseaseNode", "WeatherNode", "MandiNode", 'GeneralNode']:
+
+async def async_router_chain():
     """
     Async version of router_chain.
     Return the node according to user query and the prompt

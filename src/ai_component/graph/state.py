@@ -6,4 +6,7 @@ class AICompanionState(MessagesState):
     Extends MessagesState to track conversation history and maintains the last message received.
     """
     workflow: str
+    output: str
     current_activity: str
+    image: str
+    voice: str
