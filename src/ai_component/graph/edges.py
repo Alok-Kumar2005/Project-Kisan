@@ -20,6 +20,8 @@ def select_workflow(state: AICompanionState) -> str:
             return "DiseaseNode"
         elif workflow == "WeatherNode":
             return "WeatherNode"
+        elif workflow == "MandiNode":
+            return "MandiNode"
         else:   
             return "DefaultWorkflow" 
         logging.info(f"Selected workflow: {workflow}")
@@ -27,3 +29,16 @@ def select_workflow(state: AICompanionState) -> str:
         logging.error(f"Error in Engineering Node : {str(e)}")
         raise CustomException(e, sys) from e
     
+
+def should_continue(state: AICompanionState) -> str:
+    """
+    Determine if we should continue to tools or end the conversation.
+    """
+    messages = state["messages"]
+    last_message = messages[-1]
+    
+    # Check if the last message has tool calls
+    if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+        return "tools"
+    else:
+        return "__end__"

@@ -10,4 +10,8 @@ pypdf
 pydantic
 python-dotenv
 requests
+beautifulsoup4 
+pandas 
+lxml 
+html5lib
 -e .

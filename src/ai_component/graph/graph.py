@@ -8,6 +8,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from src.ai_component.graph.state import AICompanionState
 from src.ai_component.tools.web_seach_tool import web_tool
 from src.ai_component.tools.rag_tool import rag_tool
+from src.ai_component.tools.mandi_report_tool import mandi_report_tool
 from src.ai_component.tools.weather_tool import weather_forecast_tool, weather_report_tool
 from langgraph.prebuilt import ToolNode, tools_condition
 from src.ai_component.graph.nodes import (
@@ -15,9 +16,10 @@ from src.ai_component.graph.nodes import (
     context_injestion_node,
     GeneralNode,
     DiseaseNode,
-    WeatherNode
+    WeatherNode,
+    MandiNode
 )
-from src.ai_component.graph.edges import select_workflow
+from src.ai_component.graph.edges import select_workflow, should_continue
 import asyncio
 from typing import Optional
 
@@ -25,19 +27,8 @@ from typing import Optional
 memory_saver = MemorySaver()
 disease_tools = ToolNode(tools=[web_tool, rag_tool])
 weather_tools = ToolNode(tools=[weather_forecast_tool, weather_report_tool])
+mandi_tools = ToolNode(tools = [mandi_report_tool])
 
-def should_continue(state: AICompanionState) -> str:
-    """
-    Determine if we should continue to tools or end the conversation.
-    """
-    messages = state["messages"]
-    last_message = messages[-1]
-    
-    # Check if the last message has tool calls
-    if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
-        return "tools"
-    else:
-        return "__end__"
 
 @lru_cache(maxsize=1)
 def create_async_workflow_graph():
@@ -54,8 +45,10 @@ def create_async_workflow_graph():
     graph_builder.add_node("GeneralNode", GeneralNode)
     graph_builder.add_node("DiseaseNode", DiseaseNode)
     graph_builder.add_node("WeatherNode", WeatherNode)  
+    graph_builder.add_node("MandiNode", MandiNode)  
     graph_builder.add_node("disease_tools", disease_tools)
     graph_builder.add_node("weather_tools", weather_tools) 
+    graph_builder.add_node("mandi_tools", mandi_tools) 
 
     # Adding edges
     graph_builder.add_edge(START, "route_node")
@@ -68,6 +61,7 @@ def create_async_workflow_graph():
             "GeneralNode": "GeneralNode",
             "DiseaseNode": "DiseaseNode",
             "WeatherNode": "WeatherNode",  
+            "MandiNode": "MandiNode",
             "DefaultWorkflow": "GeneralNode"
         }
     )
@@ -89,10 +83,19 @@ def create_async_workflow_graph():
             "__end__": END
         }
     )
+    graph_builder.add_conditional_edges(
+        "MandiNode", 
+        should_continue,
+        {
+            "tools": "mandi_tools",
+            "__end__": END
+        }
+    )
     
     # After using tools, return to DiseaseNode
     graph_builder.add_edge("disease_tools", "DiseaseNode")
     graph_builder.add_edge("weather_tools", "WeatherNode")
+    graph_builder.add_edge("mandi_tools", "MandiNode")
     
     graph_builder.add_edge("GeneralNode", END)
     
@@ -148,8 +151,15 @@ async def process_query_async(
 if __name__ == "__main__":
     async def test_async_execution():
         # Simple test
-        query = "can you tell me weather forecast of varanasi, uttar pradesh for next 7 days, india in image format?"
-        result = await process_query_async(query, workflow="DiseaseNode")
+        query = "can you give the forecast of the weather of next 4 days?"
+        result = await process_query_async(query)
+        for msg in reversed(result["messages"]):
+            if hasattr(msg, 'content') and msg.content:
+                print(msg.content)
+                break
+        print("="*150)
+        query = "of Varanasi, Uttar Pradesh, India?"
+        result = await process_query_async(query)
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:
                 print(msg.content)

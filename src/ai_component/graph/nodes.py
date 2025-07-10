@@ -7,10 +7,11 @@ from src.ai_component.graph.utils.chains import async_router_chain
 from src.ai_component.llm import LLMChainFactory
 from src.ai_component.modules.schedule.context_generation import ScheduleContextGenerator
 from src.ai_component.graph.state import AICompanionState
-from src.ai_component.core.prompts import general_template, disease_template, weather_template
+from src.ai_component.core.prompts import general_template, disease_template, weather_template, mandi_template
 from src.ai_component.tools.web_seach_tool import web_tool
 from src.ai_component.tools.rag_tool import rag_tool
 from src.ai_component.tools.weather_tool import weather_forecast_tool, weather_report_tool
+from src.ai_component.tools.mandi_report_tool import mandi_report_tool
 from src.ai_component.logger import logging
 from src.ai_component.exception import CustomException
 from langchain_core.messages import HumanMessage, AIMessage
@@ -55,6 +56,7 @@ async def context_injestion_node(state: AICompanionState) -> AIMessage:
     try:
         logging.info("Calling Context Ingestion Node")
         current_activity = ScheduleContextGenerator.get_current_activity()
+        logging.info(f"Current activuty of Ramesh Kumar is {current_activity}")
         
         if current_activity:
             return {
@@ -120,15 +122,15 @@ async def DiseaseNode(state: AICompanionState):
                     tool_results.append(f"Tool: {msg.name}\nResult: {msg.content}")
 
             enhanced_template = f"""
-    {disease_template}
+                {disease_template}
 
-    Original Query: {{query}}
+                Original Query: {{query}}
 
-    Tool Results:
-    {{tool_results}}
+                Tool Results:
+                {{tool_results}}
 
-    Based on the tool results above, provide a comprehensive answer about the plant disease and treatment recommendations.
-    """
+                Based on the tool results above, provide a comprehensive answer about the plant disease and treatment recommendations.
+                """
             
             prompt = PromptTemplate(
                 input_variables=["query", "tool_results"],
@@ -141,7 +143,7 @@ async def DiseaseNode(state: AICompanionState):
                 "query": query,
                 "tool_results": "\n\n".join(tool_results)
             })
-            
+            logging.info(f"Response from DiseaseNode without tool calling: {response}")
             return {
                 "messages": [AIMessage(content=response.content)]
             }
@@ -161,7 +163,7 @@ async def DiseaseNode(state: AICompanionState):
             factory = LLMChainFactory(model_type="groq")
             chain = await factory.get_llm_tool_chain(prompt, tools)
             response = await chain.ainvoke({"query": query})
-            
+            logging.info(f"Response from DiseaseNode with tool calling: {response}")
             # Check if the response contains tool calls
             if hasattr(response, 'tool_calls') and response.tool_calls:
                 # Return the AI message with tool calls
@@ -188,7 +190,7 @@ async def WeatherNode(state: AICompanionState):
         
         messages = state["messages"]
         
-        # Check if the last message is a tool message (result from web search)
+        # Check if the last message is a tool message 
         if messages and isinstance(messages[-1], ToolMessage):
             query = ""
             tool_results = []
@@ -200,18 +202,18 @@ async def WeatherNode(state: AICompanionState):
                     tool_results.append(f"Search Result: {msg.content}")
             
             enhanced_template = f"""
-{weather_template}
+                {weather_template}
 
-Original Query: {{query}}
+                Original Query: {{query}}
 
-Weather Search Results:
-{{tool_results}}
+                Weather Search Results:
+                {{tool_results}}
 
-Based on the search results above, provide a comprehensive weather report with current conditions and/or forecast as requested.
-"""
+                Based on the search results above, provide a comprehensive weather report with current conditions and/or forecast as requested.
+                """
             
             prompt = PromptTemplate(
-                input_variables=["query", "tool_results", "date"],
+                input_variables=["date", "query", "tool_results" ],
                 template=enhanced_template
             )
             
@@ -222,7 +224,7 @@ Based on the search results above, provide a comprehensive weather report with c
                 "tool_results": "\n\n".join(tool_results),
                 "date": datetime.now().strftime("%Y-%m-%d")
             })
-            
+            logging.info(f"Response from WeatherNode without tool calling: {response}")
             return {
                 "messages": [AIMessage(content=response.content)]
             }
@@ -232,7 +234,7 @@ Based on the search results above, provide a comprehensive weather report with c
             query = messages[-1].content if messages else ""
             
             prompt = PromptTemplate(
-                input_variables=["query", "date"],
+                input_variables=["date", "query"],
                 template=weather_template
             )
             
@@ -243,7 +245,86 @@ Based on the search results above, provide a comprehensive weather report with c
                 "query": query,
                 "date": datetime.now().strftime("%Y-%m-%d")
             })
+            logging.info(f"Response from WeatherNode with tool calling: {response}")
+            # Check if the response contains tool calls
+            if hasattr(response, 'tool_calls') and response.tool_calls:
+                return {
+                    "messages": [response]
+                }
+            else:
+                return {
+                    "messages": [AIMessage(content=response.content)]
+                }
+                
+    except CustomException as e:
+        logging.error(f"Error in Weather Node: {str(e)}")
+        raise CustomException(e, sys) from e
+    except Exception as e:
+        logging.error(f"Unexpected error in Weather Node: {str(e)}")
+        raise CustomException(e, sys) from e
+    
+
+async def MandiNode(state: AICompanionState) -> AICompanionState:
+    """
+    These Node will help the farmer to get the detail mandi report
+    """
+    try:
+        logging.info("Calling Mandi Node")
+        messages = state["messages"]
+        if messages and isinstance(messages[-1], ToolMessage):
+            query = ""
+            tool_results = []
+            for msg in reversed(messages):
+                if isinstance(msg, HumanMessage):
+                    query = msg.content
+                    break
+                elif isinstance(msg, ToolMessage):
+                    tool_results.append(f"Search Result: {msg.content}")
             
+            enhanced_template = f"""
+                {mandi_template}
+
+                Original Query: {{query}}
+
+                Weather Search Results:
+                {{tool_results}}
+
+                Based on the search results above, provide a comprehensive weather report with current conditions and/or forecast as requested.``
+                """
+            
+            prompt = PromptTemplate(
+                input_variables=["query", "tool_results", "date"],
+                template=enhanced_template
+            )
+            
+            factory = LLMChainFactory(model_type="groq")
+            chain = await factory.get_llm_chain_async(prompt)
+            response = await chain.ainvoke({
+                "query": query,
+                "tool_results": "\n\n".join(tool_results),
+                "date": datetime.now().strftime("%Y-%m-%d")
+            })
+            logging.info(f"Response from MandiNode without tool calling: {response}")
+            return {
+                "messages": [AIMessage(content=response.content)]
+            }
+        
+        else:
+            query = messages[-1].content if messages else ""
+            
+            prompt = PromptTemplate(
+                input_variables=["query", "date"],
+                template=weather_template
+            )
+            
+            tools = [mandi_report_tool]
+            factory = LLMChainFactory(model_type="groq")
+            chain = await factory.get_llm_tool_chain(prompt, tools)
+            response = await chain.ainvoke({
+                "query": query,
+                "date": datetime.now().strftime("%Y-%m-%d")
+            })
+            logging.info(f"Response from MandiNode with tool calling: {response}")
             # Check if the response contains tool calls
             if hasattr(response, 'tool_calls') and response.tool_calls:
                 return {
