@@ -82,7 +82,7 @@ async def GeneralNode(state: AICompanionState) -> AIMessage:
             input_variables=["current_activity", "query"],
             template=general_template
         )
-        factory = LLMChainFactory(model_type="gemini")
+        factory = LLMChainFactory(model_type="groq")
         chain = await factory.get_llm_chain_async(prompt)
         response = await chain.ainvoke({
             "current_activity": state["current_activity"],
@@ -135,7 +135,7 @@ async def DiseaseNode(state: AICompanionState):
                 template=enhanced_template
             )
             
-            factory = LLMChainFactory(model_type="gemini")
+            factory = LLMChainFactory(model_type="groq")
             chain = await factory.get_llm_chain_async(prompt)
             response = await chain.ainvoke({
                 "query": query,
@@ -158,7 +158,7 @@ async def DiseaseNode(state: AICompanionState):
             )
             
             tools = [web_tool, rag_tool]
-            factory = LLMChainFactory(model_type="gemini")
+            factory = LLMChainFactory(model_type="groq")
             chain = await factory.get_llm_tool_chain(prompt, tools)
             response = await chain.ainvoke({"query": query})
             

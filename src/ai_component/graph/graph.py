@@ -148,7 +148,7 @@ async def process_query_async(
 if __name__ == "__main__":
     async def test_async_execution():
         # Simple test
-        query = "can you tell me today weather of varanasi, uttar pradesh, india?"
+        query = "can you tell me weather forecast of varanasi, uttar pradesh for next 7 days, india in image format?"
         result = await process_query_async(query, workflow="DiseaseNode")
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:
