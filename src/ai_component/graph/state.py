@@ -8,5 +8,5 @@ class AICompanionState(MessagesState):
     workflow: str
     output: str
     current_activity: str
-    image: str
+    image: bytes
     voice: str

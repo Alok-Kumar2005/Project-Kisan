@@ -2,12 +2,13 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
+import asyncio
 from datetime import datetime
 from src.ai_component.graph.utils.chains import async_router_chain
 from src.ai_component.llm import LLMChainFactory
 from src.ai_component.modules.schedule.context_generation import ScheduleContextGenerator
 from src.ai_component.graph.state import AICompanionState
-from src.ai_component.core.prompts import general_template, disease_template, weather_template, mandi_template
+from src.ai_component.core.prompts import general_template, disease_template, weather_template, mandi_template, image_template
 from src.ai_component.tools.web_seach_tool import web_tool
 from src.ai_component.tools.rag_tool import rag_tool
 from src.ai_component.tools.weather_tool import weather_forecast_tool, weather_report_tool
@@ -38,6 +39,7 @@ async def route_node(state: AICompanionState) -> str:
         response = await chain.ainvoke({"query": query})
 
         logging.info(f"Route Node Response: {response.route_node}")
+        logging.info(f"Route Node Via : {response.output}")
         
         return {
             "workflow": response.route_node,
@@ -384,32 +386,51 @@ async def CarbonFootprintNode(state: AICompanionState)->AICompanionState:
 
 
 
-
-
-
 async def MemoryIngestionNode(state: AICompanionState):
     """
     Update the memory of the user conversation in database for future context
     """
     return {}
 
+
 async def ImageNode(state: AICompanionState):
     """
-    this will convert the response in the image
+    This will convert the response into an image
     """
     try:
         logging.info("Calling Image node")
-
+        query = state["messages"][-1].content if state["messages"] else ""
+        
+        # Generate optimized image prompt
+        prompt = PromptTemplate(
+            input_variables=['text'],
+            template=image_template
+        )
+        factory = LLMChainFactory(model_type="gemini")
+        chain = await factory.get_llm_chain_async(prompt=prompt)
+        response = await chain.ainvoke({"text": query})
+        
+        # Run image generation in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        img_bytes = await loop.run_in_executor(
+            None, 
+            lambda: factory.get_image_model(response.content)
+        )
+        
+        logging.info(f"Generated image successfully")
+        
         return {
-            "image": "Image generated"
+            "image": img_bytes
         }
     except CustomException as e:
-        logging.error(f"Error in  ImageNode: {str(e)}")
+        logging.error(f"Error in ImageNode: {str(e)}")
         raise CustomException(e, sys) from e
     except Exception as e:
         logging.error(f"Unexpected error in ImageNode: {str(e)}")
         raise CustomException(e, sys) from e
     
+
+
 async def VoiceNode(state: AICompanionState):
     """
     this will convert the response in the image

@@ -11,7 +11,7 @@ from together import Together
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import os
-
+import asyncio
 from typing import Annotated
 from langchain_core.messages import BaseMessage
 from typing_extensions import TypedDict
