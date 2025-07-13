@@ -130,13 +130,13 @@ def create_async_workflow_graph():
 
 
 async_graph = create_async_workflow_graph()
-# try:
-#     img_data = async_graph.get_graph().draw_mermaid_png()
-#     with open("workflow.png", "wb") as f:
-#         f.write(img_data)
-#     print("Graph saved as workflow.png")
-# except Exception as e:
-#     print(f"Error: {e}")
+try:
+    img_data = async_graph.get_graph().draw_mermaid_png()
+    with open("workflow.png", "wb") as f:
+        f.write(img_data)
+    print("Graph saved as workflow.png")
+except Exception as e:
+    print(f"Error: {e}")
 
 
 async def process_query_async(
@@ -178,7 +178,7 @@ async def process_query_async(
 if __name__ == "__main__":
     async def test_async_execution():
         # Simple test
-        query = "Can you tell me the today weather in Ramghar, Kaimur, Bihar , India in Image format"
+        query = "Can you give me the forecast of weather of Delhi, India of next 10 days in Image format"
         result = await process_query_async(query)
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:

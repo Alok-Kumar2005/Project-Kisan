@@ -15,450 +15,262 @@ from src.ai_component.tools.weather_tool import weather_forecast_tool, weather_r
 from src.ai_component.tools.mandi_report_tool import mandi_report_tool
 from src.ai_component.logger import logging
 from src.ai_component.exception import CustomException
-from langchain_core.messages import HumanMessage, AIMessage
-from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+from langchain_core.prompts import PromptTemplate
 
 
-
-
-async def route_node(state: AICompanionState) -> str:
+async def route_node(state: AICompanionState) -> dict:
     """
-    Async version of route_node.
-    Node to route the conversation based on the user's query.
-    This node uses the async_router_chain to determine the type of response needed.
+    Route the conversation based on the user's query, preserving full history.
     """
     try:
         logging.info("Calling Route Node")
         query = state["messages"][-1].content if state["messages"] else ""
-        
-        if not query:
-            return "GeneralNode"  
-        
-        chain = await async_router_chain()
-        response = await chain.ainvoke({"query": query})
-
-        logging.info(f"Route Node Response: {response.route_node}")
-        logging.info(f"Route Node Via : {response.output}")
-        
+        # default route
+        workflow = "GeneralNode"
+        output = None
+        if query:
+            chain = await async_router_chain()
+            response = await chain.ainvoke({"query": query})
+            workflow = response.route_node
+            output = response.output
+            logging.info(f"Route Node selected: {workflow}")
         return {
-            "workflow": response.route_node,
-            "output": response.output
+            "workflow": workflow,
+            "output": output,
+            "messages": state["messages"]
         }
     except CustomException as e:
-        logging.error(f"Error in Engineering Node : {str(e)}")
+        logging.error(f"Error in route_node: {e}")
         raise CustomException(e, sys) from e
 
-
-async def context_injestion_node(state: AICompanionState) -> AIMessage:
+async def context_injestion_node(state: AICompanionState) -> dict:
     """
-    Async version of context_injestion_node.
-    Node to inject context about Ramesh Kumar's current activity into the conversation.
-    This node uses the ScheduleContextGenerator to get the current activity and returns it as an AI message.
+    Inject current activity context while preserving history.
     """
     try:
         logging.info("Calling Context Ingestion Node")
-        current_activity = ScheduleContextGenerator.get_current_activity()
-        logging.info(f"Current activuty of Ramesh Kumar is {current_activity}")
-        
-        if current_activity:
-            return {
-                "current_activity": current_activity,
-            }
-        else:
-            return {
-                "current_activity": "Ramesh Kumar is currently not scheduled for any activity."
-            }
+        activity = ScheduleContextGenerator.get_current_activity() or "No scheduled activity."
+        logging.info(f"Current activity: {activity}")
+        return {
+            "current_activity": activity,
+            "messages": state["messages"]
+        }
     except CustomException as e:
-        logging.error(f"Error in Engineering Node : {str(e)}")
+        logging.error(f"Error in context_ingestion_node: {e}")
         raise CustomException(e, sys) from e
-    
 
-async def GeneralNode(state: AICompanionState) -> AIMessage:
+
+async def GeneralNode(state: AICompanionState) -> dict:
     """
-    Async version of GeneralNode.
-    General node to handle queries that do not fit into specific categories.
-    This node can be extended to provide general information or assistance.
+    General fallback node: appends AI response to conversation history.
     """
     try:
         logging.info("Calling General Node")
-        query = state["messages"][-1].content if state["messages"] else ""
+        query = state["messages"][-1].content
+        history_text = "\n".join(m.content for m in state["messages"])
         prompt = PromptTemplate(
-            input_variables=["current_activity", "query"],
+            input_variables=["history", "current_activity", "query"],
             template=general_template
         )
         factory = LLMChainFactory(model_type="groq")
         chain = await factory.get_llm_chain_async(prompt)
         response = await chain.ainvoke({
-            "current_activity": state["current_activity"],
+            "history": history_text,
+            "current_activity": state.get("current_activity", ""),
             "query": query
         })
-        logging.info(f"General Node Response: {response.content}")
-        return {
-            "messages":[AIMessage(content=response.content)],
-        }
+        logging.info("GeneralNode got response")
+        return {"messages": state["messages"] + [AIMessage(content=response.content)]}
     except CustomException as e:
-        logging.error(f"Error in Engineering Node : {str(e)}")
+        logging.error(f"Error in GeneralNode: {e}")
         raise CustomException(e, sys) from e
-    
 
-async def DiseaseNode(state: AICompanionState):
+
+async def DiseaseNode(state: AICompanionState) -> dict:
     """
-    Disease node to handle queries related to plant diseases, symptoms, or treatments.
-    It processes plant problems from text and can use tools to find solutions.
+    Handle plant disease queries, including tool calls, appending results.
     """
     try:
         logging.info("Calling Disease Node")
         messages = state["messages"]
-        
-        # Check if the last message is a tool message (result from tools)
-        logging.info("Checking if last message is a tool message")
-        if messages and isinstance(messages[-1], ToolMessage):
-            query = ""
-            tool_results = []
-            
-            for msg in reversed(messages):
-                if isinstance(msg, HumanMessage):
-                    query = msg.content
-                    break
-                elif isinstance(msg, ToolMessage):
-                    tool_results.append(f"Tool: {msg.name}\nResult: {msg.content}")
-
-            enhanced_template = f"""
-                {disease_template}
-
-                Original Query: {{query}}
-
-                Tool Results:
-                {{tool_results}}
-
-                Based on the tool results above, provide a comprehensive answer about the plant disease and treatment recommendations.
-                """
-            
-            prompt = PromptTemplate(
-                input_variables=["query", "tool_results"],
-                template=enhanced_template
-            )
-            
+        last = messages[-1]
+        history_text = "\n".join(m.content for m in messages)
+        # if last message is a tool result, generate final report
+        if isinstance(last, ToolMessage):
+            # find original query
+            query = next((m.content for m in reversed(messages) if isinstance(m, HumanMessage)), "")
+            tool_results = "\n".join(f"Tool: {m.name}\nResult: {m.content}" for m in messages if isinstance(m, ToolMessage))
+            enhanced = f"{disease_template}\nOriginal Query: {{query}}\nTool Results:\n{{tool_results}}"
+            prompt = PromptTemplate(input_variables=["query", "tool_results"], template=enhanced)
             factory = LLMChainFactory(model_type="gemini")
             chain = await factory.get_llm_chain_async(prompt)
-            response = await chain.ainvoke({
-                "query": query,
-                "tool_results": "\n\n".join(tool_results)
-            })
-            logging.info(f"Response from DiseaseNode without tool calling: {response}")
-            return {
-                "messages": [AIMessage(content=response.content)]
-            }
-        
-        else:
-            logging.info("No tool message found, processing query directly")
-            # Initial processing - decide whether to use tools or respond directly
-            query = messages[-1].content if messages else ""
-            
-            # Use LLM with tools to process the query
-            prompt = PromptTemplate(
-                input_variables=["query"],
-                template=disease_template
-            )
-            
-            tools = [web_tool, rag_tool]
-            factory = LLMChainFactory(model_type="groq")
-            chain = await factory.get_llm_tool_chain(prompt, tools)
-            response = await chain.ainvoke({"query": query})
-            logging.info(f"Response from DiseaseNode with tool calling: {response}")
-            # Check if the response contains tool calls
-            if hasattr(response, 'tool_calls') and response.tool_calls:
-                # Return the AI message with tool calls
-                return {
-                    "messages": [response]
-                }
-            else:
-                # Direct response without tools
-                return {
-                    "messages": [AIMessage(content=response.content)]
-                }
+            resp = await chain.ainvoke({"query": query, "tool_results": tool_results})
+            return {"messages": messages + [AIMessage(content=resp.content)]}
+        # otherwise, call tools as needed
+        query = last.content
+        prompt = PromptTemplate(input_variables=["history", "query"], template=disease_template)
+        factory = LLMChainFactory(model_type="groq")
+        chain = await factory.get_llm_tool_chain(prompt, [web_tool, rag_tool])
+        resp = await chain.ainvoke({"history": history_text, "query": query})
+        if hasattr(resp, 'tool_calls') and resp.tool_calls:
+            return {"messages": messages + [resp]}
+        return {"messages": messages + [AIMessage(content=resp.content)]}
     except CustomException as e:
-        logging.error(f"Error in Engineering Node : {str(e)}")
+        logging.error(f"Error in DiseaseNode: {e}")
         raise CustomException(e, sys) from e
-    
 
-async def WeatherNode(state: AICompanionState):
+
+async def WeatherNode(state: AICompanionState) -> dict:
     """
-    Weather node to handle queries related to weather conditions, forecasts, or climate-related information.
-    It uses the web search tool to find the latest weather data and provides a response.
+    Handle weather requests, using web or forecast tools, preserving history.
     """
     try:
         logging.info("Calling Weather Node")
-        
         messages = state["messages"]
-        
-        # Check if the last message is a tool message 
-        if messages and isinstance(messages[-1], ToolMessage):
-            query = ""
-            tool_results = []
-            for msg in reversed(messages):
-                if isinstance(msg, HumanMessage):
-                    query = msg.content
-                    break
-                elif isinstance(msg, ToolMessage):
-                    tool_results.append(f"Search Result: {msg.content}")
-            
-            enhanced_template = f"""
-                {weather_template}
-
-                Original Query: {{query}}
-
-                Weather Search Results:
-                {{tool_results}}
-
-                Based on the search results above, provide a comprehensive weather report with current conditions and/or forecast as requested.
-                """
-            
-            # Fix: Include all variables that weather_template uses
-            prompt = PromptTemplate(
-                input_variables=["date", "query", "tool_results"],  # Include "date" since weather_template uses it
-                template=enhanced_template
-            )
-            
-            factory = LLMChainFactory(model_type="gemini")
-            chain = await factory.get_llm_chain_async(prompt)
-            response = await chain.ainvoke({
+        last = messages[-1]
+        history_text = "\n".join(m.content for m in messages)
+        # tool result branch
+        if isinstance(last, ToolMessage):
+            query = next((m.content for m in reversed(messages) if isinstance(m, HumanMessage)), "")
+            tool_results = "\n".join(m.content for m in messages if isinstance(m, ToolMessage))
+            enhanced = f"{weather_template}\nOriginal Query: {{query}}\nResults:\n{{tool_results}}"
+            prompt = PromptTemplate(input_variables=["date","query","tool_results"], template=enhanced)
+            chain = await LLMChainFactory(model_type="gemini").get_llm_chain_async(prompt)
+            resp = await chain.ainvoke({
+                "date": datetime.now().strftime("%Y-%m-%d"),
                 "query": query,
-                "tool_results": "\n\n".join(tool_results),
-                "date": datetime.now().strftime("%Y-%m-%d")  # Include date since weather_template needs it
+                "tool_results": tool_results
             })
-            logging.info(f"Response from WeatherNode without tool calling: {response}")
-            return {
-                "messages": [AIMessage(content=response.content)]
-            }
-        
-        else:
-            # Initial processing - use web search tool to get weather data
-            query = messages[-1].content if messages else ""
-            
-            # Fix: Include date since weather_template uses it
-            prompt = PromptTemplate(
-                input_variables=["date", "query"],  # Include date since weather_template uses it
-                template=weather_template
-            )
-            
-            tools = [weather_forecast_tool, weather_report_tool]
-            factory = LLMChainFactory(model_type="groq")
-            chain = await factory.get_llm_tool_chain(prompt, tools)
-            response = await chain.ainvoke({
-                "query": query,
-                "date": datetime.now().strftime("%Y-%m-%d")  # Include date since weather_template needs it
-            })
-            logging.info(f"Response from WeatherNode with tool calling: {response}")
-            # Check if the response contains tool calls
-            if hasattr(response, 'tool_calls') and response.tool_calls:
-                return {
-                    "messages": [response]
-                }
-            else:
-                return {
-                    "messages": [AIMessage(content=response.content)]
-                }
-                
+            return {"messages": messages + [AIMessage(content=resp.content)]}
+        # initial branch
+        query = last.content
+        prompt = PromptTemplate(input_variables=["date","history","query"], template=weather_template)
+        chain = await LLMChainFactory(model_type="groq").get_llm_tool_chain(prompt, [weather_forecast_tool, weather_report_tool])
+        resp = await chain.ainvoke({
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "history": history_text,
+            "query": query
+        })
+        if hasattr(resp, 'tool_calls') and resp.tool_calls:
+            return {"messages": messages + [resp]}
+        return {"messages": messages + [AIMessage(content=resp.content)]}
     except CustomException as e:
-        logging.error(f"Error in Weather Node: {str(e)}")
+        logging.error(f"Error in WeatherNode: {e}")
         raise CustomException(e, sys) from e
-    except Exception as e:
-        logging.error(f"Unexpected error in Weather Node: {str(e)}")
-        raise CustomException(e, sys) from e
-                
 
-async def MandiNode(state: AICompanionState) -> AICompanionState:
+
+async def MandiNode(state: AICompanionState) -> dict:
     """
-    These Node will help the farmer to get the detail mandi report
+    Provide mandi reports via tool, preserving history.
     """
     try:
         logging.info("Calling Mandi Node")
         messages = state["messages"]
-        if messages and isinstance(messages[-1], ToolMessage):
-            query = ""
-            tool_results = []
-            for msg in reversed(messages):
-                if isinstance(msg, HumanMessage):
-                    query = msg.content
-                    break
-                elif isinstance(msg, ToolMessage):
-                    tool_results.append(f"Search Result: {msg.content}")
-            
-            enhanced_template = f"""
-                {mandi_template}
-
-                Original Query: {{query}}
-
-                Weather Search Results:
-                {{tool_results}}
-
-                Based on the search results above, provide a comprehensive weather report with current conditions and/or forecast as requested.``
-                """
-            
-            prompt = PromptTemplate(
-                input_variables=["query", "tool_results", "date"],
-                template=enhanced_template
-            )
-            
-            factory = LLMChainFactory(model_type="gemini")
-            chain = await factory.get_llm_chain_async(prompt)
-            response = await chain.ainvoke({
+        last = messages[-1]
+        history_text = "\n".join(m.content for m in messages)
+        if isinstance(last, ToolMessage):
+            query = next((m.content for m in reversed(messages) if isinstance(m, HumanMessage)), "")
+            tool_results = "\n".join(m.content for m in messages if isinstance(m, ToolMessage))
+            enhanced = f"{mandi_template}\nOriginal Query: {{query}}\nResults:\n{{tool_results}}"
+            prompt = PromptTemplate(input_variables=["date","query","tool_results"], template=enhanced)
+            chain = await LLMChainFactory(model_type="gemini").get_llm_chain_async(prompt)
+            resp = await chain.ainvoke({
+                "date": datetime.now().strftime("%Y-%m-%d"),
                 "query": query,
-                "tool_results": "\n\n".join(tool_results),
-                "date": datetime.now().strftime("%Y-%m-%d")
+                "tool_results": tool_results
             })
-            logging.info(f"Response from MandiNode without tool calling: {response}")
-            return {
-                "messages": [AIMessage(content=response.content)]
-            }
-        
-        else:
-            query = messages[-1].content if messages else ""
-            
-            prompt = PromptTemplate(
-                input_variables=["query", "date"],
-                template=weather_template
-            )
-            
-            tools = [mandi_report_tool]
-            factory = LLMChainFactory(model_type="groq")
-            chain = await factory.get_llm_tool_chain(prompt, tools)
-            response = await chain.ainvoke({
-                "query": query,
-                "date": datetime.now().strftime("%Y-%m-%d")
-            })
-            logging.info(f"Response from MandiNode with tool calling: {response}")
-            # Check if the response contains tool calls
-            if hasattr(response, 'tool_calls') and response.tool_calls:
-                return {
-                    "messages": [response]
-                }
-            else:
-                return {
-                    "messages": [AIMessage(content=response.content)]
-                }
-                
+            return {"messages": messages + [AIMessage(content=resp.content)]}
+        query = last.content
+        prompt = PromptTemplate(input_variables=["date","history","query"], template=mandi_template)
+        chain = await LLMChainFactory(model_type="groq").get_llm_tool_chain(prompt, [mandi_report_tool])
+        resp = await chain.ainvoke({
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "history": history_text,
+            "query": query
+        })
+        if hasattr(resp, 'tool_calls') and resp.tool_calls:
+            return {"messages": messages + [resp]}
+        return {"messages": messages + [AIMessage(content=resp.content)]}
     except CustomException as e:
-        logging.error(f"Error in Mandi Node: {str(e)}")
+        logging.error(f"Error in MandiNode: {e}")
         raise CustomException(e, sys) from e
-    except Exception as e:
-        logging.error(f"Unexpected error in Mandi Node: {str(e)}")
-        raise CustomException(e, sys) from e
-    
 
-async def GovSchemeNode(state: AICompanionState)->AICompanionState:
+
+async def GovSchemeNode(state: AICompanionState) -> dict:
     """
-    These will give the best by government to the farmers
+    Return government schemes, appending to history.
     """
     try:
-        logging.info("Calling GovSchemeNode ")
-
-        return {
-            "messages": "the best scheme are ----------------"
-        }
+        logging.info("Calling GovSchemeNode")
+        messages = state["messages"]
+        # For now static response; can be expanded with tools
+        response = "Here are the top government schemes for farmers: ..."
+        return {"messages": messages + [AIMessage(content=response)]}
     except CustomException as e:
-        logging.error(f"Error in Mandi Node: {str(e)}")
+        logging.error(f"Error in GovSchemeNode: {e}")
         raise CustomException(e, sys) from e
-    except Exception as e:
-        logging.error(f"Unexpected error in Mandi Node: {str(e)}")
-        raise CustomException(e, sys) from e
-    
 
-async def CarbonFootprintNode(state: AICompanionState)->AICompanionState:
+
+async def CarbonFootprintNode(state: AICompanionState) -> dict:
     """
-    These will give carbon footprint generated by farmers in there farm
+    Calculate/return carbon footprint info, appending to history.
     """
     try:
-        logging.info("Calling CarbonFootprintNode ")
-
-        return {
-            "messages": "total carbin footprint generated are ----------------"
-        }
+        logging.info("Calling CarbonFootprintNode")
+        messages = state["messages"]
+        response = "Total carbon footprint generated: ..."
+        return {"messages": messages + [AIMessage(content=response)]}
     except CustomException as e:
-        logging.error(f"Error in  CarbonFootprintNode: {str(e)}")
+        logging.error(f"Error in CarbonFootprintNode: {e}")
         raise CustomException(e, sys) from e
-    except Exception as e:
-        logging.error(f"Unexpected error in CarbonFootprintNode: {str(e)}")
-        raise CustomException(e, sys) from e
-    
 
 
-
-async def MemoryIngestionNode(state: AICompanionState):
+async def MemoryIngestionNode(state: AICompanionState) -> dict:
     """
-    Update the memory of the user conversation in database for future context
+    Persist full conversation to memory saver.
     """
-    return {}
+    return {"messages": state["messages"]}
 
 
-async def ImageNode(state: AICompanionState):
+async def ImageNode(state: AICompanionState) -> dict:
     """
-    This will convert the response into an image
+    Generate image from last user prompt, preserving history.
     """
     try:
-        logging.info("Calling Image node")
-        query = state["messages"][-1].content if state["messages"] else ""
-        
-        # Generate optimized image prompt
-        prompt = PromptTemplate(
-            input_variables=['text'],
-            template=image_template
-        )
+        logging.info("Calling ImageNode")
+        messages = state["messages"]
+        query = messages[-1].content
+        prompt = PromptTemplate(input_variables=["text"], template=image_template)
         factory = LLMChainFactory(model_type="gemini")
-        chain = await factory.get_llm_chain_async(prompt=prompt)
-        response = await chain.ainvoke({"text": query})
-        
-        # Run image generation in thread pool to avoid blocking
+        chain = await factory.get_llm_chain_async(prompt)
+        img_prompt = (await chain.ainvoke({"text": query})).content
         loop = asyncio.get_event_loop()
-        img_bytes = await loop.run_in_executor(
-            None, 
-            lambda: factory.get_image_model(response.content)
-        )
-        
-        logging.info(f"Generated image successfully")
-        
-        return {
-            "image": img_bytes
-        }
+        img_bytes = await loop.run_in_executor(None, lambda: factory.get_image_model(img_prompt))
+        return {"messages": messages, "image": img_bytes}
     except CustomException as e:
-        logging.error(f"Error in ImageNode: {str(e)}")
+        logging.error(f"Error in ImageNode: {e}")
         raise CustomException(e, sys) from e
-    except Exception as e:
-        logging.error(f"Unexpected error in ImageNode: {str(e)}")
-        raise CustomException(e, sys) from e
-    
 
 
-async def VoiceNode(state: AICompanionState):
+async def VoiceNode(state: AICompanionState) -> dict:
     """
-    this will convert the response in the image
+    Synthesize voice from last AI response, preserving history.
     """
     try:
-        logging.info("Calling Voice node")
-
-        return {
-            "voice": "voice generated"
-        }
+        logging.info("Calling VoiceNode")
+        messages = state["messages"]
+        text = messages[-1].content
+        # stub for voice
+        voice_bytes = b"..."
+        return {"messages": messages, "voice": voice_bytes}
     except CustomException as e:
-        logging.error(f"Error in  VoiceNode: {str(e)}")
+        logging.error(f"Error in VoiceNode: {e}")
         raise CustomException(e, sys) from e
-    except Exception as e:
-        logging.error(f"Unexpected error in VoiceNode: {str(e)}")
-        raise CustomException(e, sys) from e
-    
-async def TextNode(state: AICompanionState):
-    """
-    this will convert the response in the image
-    """
-    try:
-        logging.info("Calling Text node")
 
-        return {}
-    except CustomException as e:
-        logging.error(f"Error in  TextNode: {str(e)}")
-        raise CustomException(e, sys) from e
-    except Exception as e:
-        logging.error(f"Unexpected error in TextNode: {str(e)}")
-        raise CustomException(e, sys) from e
+
+async def TextNode(state: AICompanionState) -> dict:
+    """
+    Pass-through final text output.
+    """
+    return {"messages": state["messages"]}
