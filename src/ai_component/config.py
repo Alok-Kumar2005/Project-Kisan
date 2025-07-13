@@ -19,3 +19,10 @@ max_result = 2
 ## weather config
 DEFAULT_FORECAST_COUNT = 40
 DEFAULT_DAYS = 5
+
+## image_model
+image_model="black-forest-labs/FLUX.1-depth"
+image_width = 1024
+image_height = 768
+steps = 28
+image_url="https://github.com/nutlope.png"
