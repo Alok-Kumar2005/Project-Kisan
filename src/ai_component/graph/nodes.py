@@ -140,7 +140,7 @@ async def DiseaseNode(state: AICompanionState):
                 template=enhanced_template
             )
             
-            factory = LLMChainFactory(model_type="groq")
+            factory = LLMChainFactory(model_type="gemini")
             chain = await factory.get_llm_chain_async(prompt)
             response = await chain.ainvoke({
                 "query": query,
@@ -221,7 +221,7 @@ async def WeatherNode(state: AICompanionState):
                 template=enhanced_template
             )
             
-            factory = LLMChainFactory(model_type="groq")
+            factory = LLMChainFactory(model_type="gemini")
             chain = await factory.get_llm_chain_async(prompt)
             response = await chain.ainvoke({
                 "query": query,
@@ -302,7 +302,7 @@ async def MandiNode(state: AICompanionState) -> AICompanionState:
                 template=enhanced_template
             )
             
-            factory = LLMChainFactory(model_type="groq")
+            factory = LLMChainFactory(model_type="gemini")
             chain = await factory.get_llm_chain_async(prompt)
             response = await chain.ainvoke({
                 "query": query,

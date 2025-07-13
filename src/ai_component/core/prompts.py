@@ -171,7 +171,7 @@ CONTENT TYPE HANDLING:
 
 **For Data/Forecasting Content:**
 - If the text contains specific data, statistics, forecasts, or predictions
-- Output format: "Generate an image showing [specific data/forecast with dates/numbers] displayed as [chart type/infographic/visualization style]. Include clear labels, professional design, and make the key information prominent."
+- Output format: "Generate an image showing [specific data/forecast with dates/numbers] displayed as [chart type/infographic/visualization style with x and y axis with labels]. Include clear labels, professional design, and make the key information prominent."
 
 **For Descriptive/Narrative Content:**
 - If the text is descriptive, storytelling, or explanatory content
@@ -196,5 +196,4 @@ INPUT TEXT: {text}
 
 ANALYSIS AND OUTPUT:
 First, briefly analyze what type of content this is, then provide the optimized image generation prompt following the appropriate format above.
-Remember: flat design, no shadows, no drop shadows only clean professional style
 """
