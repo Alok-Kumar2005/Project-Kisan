@@ -21,13 +21,15 @@ from src.ai_component.config import (
     groq_model_kwargs,groq_model_name,
     image_model, image_height, image_width , steps, image_url
 )
+from src.ai_component.logger import logging
+from src.ai_component.exception import CustomException
 
 load_dotenv()
 
 os.environ['LANGSMITH_API_KEY'] = os.getenv("LANGSMITH_API_KEY")
 os.environ['LANGSMITH_TRACING'] = os.getenv("LANGSMITH_TRACING")
 os.environ['LANGSMITH_PROJECT'] = os.getenv("LANGSMITH_PROJECT")
-os.environ["TOGETHER_API_KEY"] = os.getenv("TOGETHER_API_KEY")
+os.environ["TOGETHER_API_KEY"]  = os.getenv("TOGETHER_API_KEY")
 
 class LLMChainFactory:
     def __init__(self, model_type: str = "gemini"):
@@ -68,10 +70,12 @@ class LLMChainFactory:
         Get image as raw bytes and convert it into bytes
         """
         try:
+            logging.info("Converting image url to bytes")
             response = requests.get(url=img_url)
             response.raise_for_status()
             return response.content
-        except Exception as e:
+        except CustomException as e:
+            logging.error(f"Error in converting url to bytes {str(e)}")
             print(f"Error in converting url to bytes {e}")
             return b""
 
@@ -85,9 +89,14 @@ class LLMChainFactory:
         Returns:
             An async LangChain chain that can be invoked with input variables.
         """
-        llm = self._get_llm()
-        chain = prompt | llm
-        return chain
+        try:
+            logging.info("Calling llm chain ")
+            llm = self._get_llm()
+            chain = prompt | llm
+            return chain
+        except CustomException as e:
+            logging.error(f"Error in llm chain : {str(e)}")
+            raise CustomException(e, sys) from e
 
     async def get_structured_llm_chain_async(self, prompt: PromptTemplate | ChatPromptTemplate, output_schema: BaseModel):
         """
@@ -100,9 +109,14 @@ class LLMChainFactory:
         Returns:
             An async LangChain chain that returns structured output according to the schema.
         """
-        llm = self._get_llm()
-        structured_llm = llm.with_structured_output(output_schema)
-        chain = prompt | structured_llm
+        try:
+            logging.info("Calling structured LLM model")
+            llm = self._get_llm()
+            structured_llm = llm.with_structured_output(output_schema)
+            chain = prompt | structured_llm
+        except CustomException as e:
+            logging.error(f"Error in structured llm model : {str(e)}")
+            raise CustomException(e, sys) from e
         
         return chain
 
@@ -117,10 +131,15 @@ class LLMChainFactory:
         Returns:
             A LangChain chain that can be invoked with input variables and uses the specified tools.
         """
-        llm = self._get_llm()
-        llm_with_tools = llm.bind_tools(tools)
-        chain = prompt | llm_with_tools 
-        return chain
+        try:
+            logging.info("Callin tool llm model")
+            llm = self._get_llm()
+            llm_with_tools = llm.bind_tools(tools)
+            chain = prompt | llm_with_tools 
+            return chain
+        except CustomException as e:
+            logging.error(f"Error in calling tool llm model : {str(e)}")
+            raise CustomException(e, sys) from e
     
     def get_image_model(self, prompt: str, model: str = None, 
                     img_width: int = None, img_height: int = None,
@@ -128,42 +147,15 @@ class LLMChainFactory:
         """
         Generate an image using the Together API.
         """
-        # Use defaults from config if not provided
-        model = model or image_model
-        img_width = img_width or image_width
-        img_height = img_height or image_height
-        img_steps = img_steps or steps
-        img_url = img_url or image_url
-        
-        result = self.imgClient.images.generate(
-            model=model,
-            width=img_width,
-            height=img_height,
-            steps=img_steps,
-            prompt=prompt,
-            image_url=img_url
-        )
-        result_url = result.data[0].url
-        print(result_url)
-        result_bytes = self._convert_url_to_bytes(result_url)
-        return result_bytes
-    
-    async def get_image_model_async(self, prompt: str, model: str = None, 
-                                img_width: int = None, img_height: int = None,
-                                img_steps: int = None, img_url: str = None):
-        """
-        Async wrapper for image generation.
-        """
-        model = model or image_model
-        img_width = img_width or image_width
-        img_height = img_height or image_height
-        img_steps = img_steps or steps
-        img_url = img_url or image_url
-        
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(
-            None,
-            lambda: self.imgClient.images.generate(
+        try:
+            logging.info("Calling image model")
+            model = model or image_model
+            img_width = img_width or image_width
+            img_height = img_height or image_height
+            img_steps = img_steps or steps
+            img_url = img_url or image_url
+            
+            result = self.imgClient.images.generate(
                 model=model,
                 width=img_width,
                 height=img_height,
@@ -171,11 +163,49 @@ class LLMChainFactory:
                 prompt=prompt,
                 image_url=img_url
             )
-        )
-        
-        result_url = result.data[0].url
-        result_bytes = self._convert_url_to_bytes(result_url)
-        return result_bytes, result_url
+            result_url = result.data[0].url
+            logging.info(f"Generated image url : {result_url}")
+            print(result_url)
+            result_bytes = self._convert_url_to_bytes(result_url)
+            return result_bytes
+        except CustomException as e:
+            logging.error(f"Error in generating image : {str(e)}")
+            raise CustomException(e, sys) from e
+    
+    async def get_image_model_async(self, prompt: str, model: str = None, 
+                                img_width: int = None, img_height: int = None,
+                                img_steps: int = None, img_url: str = None):
+        """
+        Async wrapper for image generation.
+        """
+        try:
+            logging.info("Calling image model")
+            model = model or image_model
+            img_width = img_width or image_width
+            img_height = img_height or image_height
+            img_steps = img_steps or steps
+            img_url = img_url or image_url
+            
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                None,
+                lambda: self.imgClient.images.generate(
+                    model=model,
+                    width=img_width,
+                    height=img_height,
+                    steps=img_steps,
+                    prompt=prompt,
+                    image_url=img_url
+                )
+            )
+            
+            result_url = result.data[0].url
+            logging.info(f"Generated image Url: {result_url}")
+            result_bytes = self._convert_url_to_bytes(result_url)
+            return result_bytes, result_url
+        except CustomException as e:
+            logging.error(f"Error in generating image : {str(e)}")
+            raise CustomException(e, sys) from e
 
 
 if __name__ == "__main__":
