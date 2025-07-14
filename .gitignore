@@ -209,3 +209,6 @@ __marimo__/
 
 
 logs/
+aliases/
+collections/
+raft_state.json

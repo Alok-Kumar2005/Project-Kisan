@@ -26,3 +26,8 @@ image_width = 256
 image_height = 192
 steps = 38
 image_url="https://imgs.search.brave.com/sYprGgU1Zl3qYed4XU19fDsWpBVFDv0RvNKEe-FAdaQ/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly90My5m/dGNkbi5uZXQvanBn/LzAzLzk1LzQ4Lzg2/LzM2MF9GXzM5NTQ4/ODY4M19DZnhwYlph/M2hlMXlnVFpYSGRT/cEhVdlp5cUw0c3Yy/di5qcGc"
+
+
+### memory config
+top_collection_search = 3
+top_database_search = 10
