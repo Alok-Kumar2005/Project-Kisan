@@ -24,17 +24,21 @@ class MandiPriceForecastInput(BaseModel):
     state: Optional[str] = Field(None, description="The state to filter prices (optional).", examples=["Uttar Pradesh", "Maharashtra", "Punjab", "Haryana", "Delhi", "Bihar", "West Bengal", "Tamil Nadu", "Karnataka", "Andhra Pradesh"])
     district: Optional[str] = Field(None, description="The district to filter prices (optional).", examples=["Varanasi", "Mumbai", "Amritsar", "Delhi", "Lucknow", "Patna", "Kolkata", "Chennai", "Bangalore"])
     market: Optional[str] = Field(None, description="The market to filter prices (optional).", examples=["Varanasi Mandi", "Mumbai APMC", "Amritsar Mandi", "Delhi Azadpur Mandi"])
-    days: Optional[int] = Field(10, description="Number of days to analyze for price trends (default: 10, max: 30)")
+    historical_days: Optional[int] = Field(10, description="Number of historical days to analyze and show detailed analysis (default: 10, max: 30)")
     forecast_days: Optional[int] = Field(7, description="Number of days to forecast prices (default: 7, max: 15)")
+    include_historical_analysis: Optional[bool] = Field(True, description="Include detailed analysis of historical prices (default: True)")
+    include_future_forecast: Optional[bool] = Field(True, description="Include future price forecasting (default: True)")
 
 
 class MandiPriceForecastTool(BaseTool):
     """
-    This tool fetches mandi prices for specific commodities and provides price forecasting analysis.
-    It analyzes historical price trends and provides simple forecasting for the next few days.
+    This tool fetches mandi prices for specific commodities and provides comprehensive analysis including:
+    - Historical price analysis for past days
+    - Current price trends and patterns
+    - Future price forecasting for next few days
     """
     name: str = "mandi_price_forecast_tool"
-    description: str = "Fetches mandi prices for specific commodities and provides price trend analysis and forecasting. Analyzes price patterns and predicts future prices based on historical data."
+    description: str = "Fetches mandi prices for specific commodities and provides comprehensive analysis including historical price trends for past days and future price forecasting. Analyzes both historical patterns and predicts future prices."
     args_schema: Type[MandiPriceForecastInput] = MandiPriceForecastInput
     
     # Define class attributes
@@ -156,6 +160,71 @@ class MandiPriceForecastTool(BaseTool):
         
         return df_clean
 
+    def _get_historical_analysis(self, df: pd.DataFrame, historical_days: int = 10) -> Dict[str, Any]:
+        """
+        Analyze historical price data for the specified number of days.
+        """
+        if df.empty or 'price' not in df.columns:
+            return {}
+        
+        # If we have date column, filter by recent days
+        if 'date' in df.columns:
+            latest_date = df['date'].max()
+            cutoff_date = latest_date - timedelta(days=historical_days)
+            recent_df = df[df['date'] >= cutoff_date].copy()
+        else:
+            # If no date column, take last N records
+            recent_df = df.tail(historical_days).copy()
+        
+        if recent_df.empty:
+            return {}
+        
+        prices = recent_df['price'].values
+        
+        # Calculate daily changes if we have dates
+        daily_analysis = []
+        if 'date' in recent_df.columns and len(recent_df) > 1:
+            recent_df = recent_df.sort_values('date')
+            for i in range(len(recent_df)):
+                row = recent_df.iloc[i]
+                analysis_item = {
+                    'date': row['date'].strftime('%Y-%m-%d') if pd.notna(row['date']) else f"Day {i+1}",
+                    'price': float(row['price']),
+                }
+                
+                # Calculate change from previous day
+                if i > 0:
+                    prev_price = recent_df.iloc[i-1]['price']
+                    price_change = row['price'] - prev_price
+                    price_change_percent = (price_change / prev_price) * 100
+                    analysis_item.update({
+                        'change_from_prev': float(price_change),
+                        'change_percent': float(price_change_percent),
+                        'trend': 'up' if price_change > 0 else 'down' if price_change < 0 else 'stable'
+                    })
+                
+                daily_analysis.append(analysis_item)
+        
+        # Overall historical statistics
+        historical_stats = {
+            'period_days': len(recent_df),
+            'average_price': float(np.mean(prices)),
+            'min_price': float(np.min(prices)),
+            'max_price': float(np.max(prices)),
+            'price_volatility': float(np.std(prices)),
+            'daily_analysis': daily_analysis
+        }
+        
+        # Calculate overall trend for the period
+        if len(prices) >= 2:
+            overall_trend = np.polyfit(range(len(prices)), prices, 1)[0]
+            historical_stats.update({
+                'overall_trend': 'upward' if overall_trend > 0 else 'downward' if overall_trend < 0 else 'stable',
+                'trend_strength': abs(float(overall_trend))
+            })
+        
+        return historical_stats
+
     def _calculate_price_statistics(self, df: pd.DataFrame) -> Dict[str, Any]:
         """
         Calculate comprehensive price statistics.
@@ -226,6 +295,9 @@ class MandiPriceForecastTool(BaseTool):
         forecast = []
         last_price = prices[-1]
         
+        # Get current date for future predictions
+        current_date = datetime.now()
+        
         for i in range(1, forecast_days + 1):
             # Simple linear projection with some smoothing
             predicted_price = last_price + (recent_trend * i)
@@ -234,10 +306,15 @@ class MandiPriceForecastTool(BaseTool):
             if abs(predicted_price - short_ma) > (short_ma * 0.1):  # If prediction deviates too much
                 predicted_price = (predicted_price + short_ma) / 2  # Average with moving average
             
+            forecast_date = current_date + timedelta(days=i)
+            
             forecast.append({
                 'day': i,
+                'date': forecast_date.strftime('%Y-%m-%d'),
                 'predicted_price': round(float(predicted_price), 2),
-                'confidence': 'medium' if i <= 3 else 'low'
+                'confidence': 'high' if i <= 2 else 'medium' if i <= 5 else 'low',
+                'change_from_current': round(float(predicted_price - last_price), 2),
+                'change_percent': round(float(((predicted_price - last_price) / last_price) * 100), 2)
             })
         
         return {
@@ -248,9 +325,11 @@ class MandiPriceForecastTool(BaseTool):
             'long_ma': float(long_ma)
         }
 
-    def _generate_price_report(self, df: pd.DataFrame, stats: Dict[str, Any], forecast: Dict[str, Any], **kwargs) -> str:
+    def _generate_comprehensive_report(self, df: pd.DataFrame, stats: Dict[str, Any], 
+                                     historical_analysis: Dict[str, Any], forecast: Dict[str, Any], 
+                                     include_historical: bool, include_future: bool, **kwargs) -> str:
         """
-        Generate a comprehensive price report with forecasting.
+        Generate a comprehensive price report with both historical analysis and forecasting.
         """
         if df.empty:
             return f"❌ No price data found for {kwargs.get('commodity', 'the specified commodity')}."
@@ -259,55 +338,113 @@ class MandiPriceForecastTool(BaseTool):
         state = kwargs.get('state', 'All States')
         
         report = []
-        report.append(f"📊 **{commodity} Price Analysis Report**")
+        report.append(f"📊 **{commodity} Comprehensive Price Analysis Report**")
         report.append(f"📍 **Location:** {state}")
         report.append(f"📈 **Data Points:** {stats.get('total_records', 0)} records")
+        report.append(f"🕒 **Analysis Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         report.append("")
         
         # Current price information
         if stats.get('current_price'):
             report.append(f"💰 **Current Price:** ₹{stats['current_price']:.2f} per quintal")
         
-        # Price statistics
-        report.append(f"📊 **Price Statistics:**")
+        # Overall price statistics
+        report.append(f"📊 **Overall Statistics:**")
         report.append(f"   • **Average Price:** ₹{stats.get('average_price', 0):.2f}")
-        report.append(f"   • **Minimum Price:** ₹{stats.get('min_price', 0):.2f}")
-        report.append(f"   • **Maximum Price:** ₹{stats.get('max_price', 0):.2f}")
+        report.append(f"   • **Price Range:** ₹{stats.get('min_price', 0):.2f} - ₹{stats.get('max_price', 0):.2f}")
+        report.append(f"   • **Price Volatility:** ₹{stats.get('price_std', 0):.2f}")
         
         # Price trend
         if 'price_trend' in stats:
             trend_emoji = "📈" if stats['price_trend'] == 'increasing' else "📉" if stats['price_trend'] == 'decreasing' else "➡️"
-            report.append(f"   • **Price Trend:** {trend_emoji} {stats['price_trend'].title()}")
+            report.append(f"   • **Overall Trend:** {trend_emoji} {stats['price_trend'].title()}")
             
             if 'price_change_percent' in stats:
-                report.append(f"   • **Price Change:** {stats['price_change_percent']:.1f}%")
+                report.append(f"   • **Trend Change:** {stats['price_change_percent']:.1f}%")
         
         report.append("")
         
-        # Forecasting section
-        if 'forecast' in forecast and forecast['forecast']:
-            report.append(f"🔮 **Price Forecast (Next {len(forecast['forecast'])} days):**")
+        # Historical Analysis Section
+        if include_historical and historical_analysis:
+            report.append(f"📅 **Historical Analysis (Last {historical_analysis.get('period_days', 0)} days):**")
             
-            for day_forecast in forecast['forecast'][:7]:  # Show only first 7 days
+            if 'daily_analysis' in historical_analysis and historical_analysis['daily_analysis']:
+                # Show last 7 days of detailed analysis
+                recent_days = historical_analysis['daily_analysis'][-7:]
+                for day_data in recent_days:
+                    date_str = day_data['date']
+                    price = day_data['price']
+                    
+                    day_line = f"   • **{date_str}:** ₹{price:.2f}"
+                    
+                    if 'change_from_prev' in day_data:
+                        change = day_data['change_from_prev']
+                        change_pct = day_data['change_percent']
+                        trend = day_data['trend']
+                        
+                        if trend == 'up':
+                            day_line += f" 📈 (+₹{change:.2f}, +{change_pct:.1f}%)"
+                        elif trend == 'down':
+                            day_line += f" 📉 (-₹{abs(change):.2f}, {change_pct:.1f}%)"
+                        else:
+                            day_line += f" ➡️ (No change)"
+                    
+                    report.append(day_line)
+            
+            # Historical period summary
+            if 'overall_trend' in historical_analysis:
+                hist_trend_emoji = "📈" if historical_analysis['overall_trend'] == 'upward' else "📉" if historical_analysis['overall_trend'] == 'downward' else "➡️"
+                report.append(f"   • **Period Trend:** {hist_trend_emoji} {historical_analysis['overall_trend'].title()}")
+                report.append(f"   • **Period Average:** ₹{historical_analysis.get('average_price', 0):.2f}")
+                report.append(f"   • **Period Volatility:** ₹{historical_analysis.get('price_volatility', 0):.2f}")
+            
+            report.append("")
+        
+        # Future Forecasting Section
+        if include_future and 'forecast' in forecast and forecast['forecast']:
+            report.append(f"🔮 **Future Price Forecast (Next {len(forecast['forecast'])} days):**")
+            
+            for day_forecast in forecast['forecast']:
                 confidence_emoji = "🟢" if day_forecast['confidence'] == 'high' else "🟡" if day_forecast['confidence'] == 'medium' else "🔴"
-                report.append(f"   • **Day {day_forecast['day']}:** ₹{day_forecast['predicted_price']:.2f} {confidence_emoji}")
+                change_emoji = "📈" if day_forecast['change_from_current'] > 0 else "📉" if day_forecast['change_from_current'] < 0 else "➡️"
+                
+                report.append(f"   • **{day_forecast['date']} (Day {day_forecast['day']}):** ₹{day_forecast['predicted_price']:.2f} {confidence_emoji}")
+                report.append(f"     └─ Change: {change_emoji} {day_forecast['change_from_current']:+.2f} ({day_forecast['change_percent']:+.1f}%)")
             
             trend_direction = forecast.get('trend_direction', 'stable')
             trend_emoji = "📈" if trend_direction == 'upward' else "📉" if trend_direction == 'downward' else "➡️"
             report.append(f"   • **Forecast Trend:** {trend_emoji} {trend_direction.title()}")
             
             report.append("")
-            report.append(f"ℹ️ **Note:** This is a simple forecast based on recent price trends. Market prices can be influenced by many factors including weather, demand, supply, and government policies.")
+        
+        # Recommendations and Notes
+        report.append("📋 **Analysis Summary:**")
+        
+        if include_historical and historical_analysis:
+            if 'overall_trend' in historical_analysis:
+                report.append(f"   • Recent historical trend shows {historical_analysis['overall_trend']} movement")
+        
+        if include_future and 'trend_direction' in forecast:
+            report.append(f"   • Future forecast suggests {forecast['trend_direction']} trend")
+        
+        report.append("")
+        report.append("ℹ️ **Important Notes:**")
+        report.append("   • Historical analysis is based on actual recorded prices")
+        report.append("   • Future forecasts are predictions based on recent trends")
+        report.append("   • Market prices can be influenced by weather, demand, supply, and policies")
+        report.append("   • Use this analysis as a reference, not absolute prediction")
         
         return "\n".join(report)
 
     def _run(self, commodity: str, state: Optional[str] = None, district: Optional[str] = None, 
-            market: Optional[str] = None, days: Optional[int] = 10, forecast_days: Optional[int] = 7) -> str:
+            market: Optional[str] = None, historical_days: Optional[int] = 10, 
+            forecast_days: Optional[int] = 7, include_historical_analysis: Optional[bool] = True,
+            include_future_forecast: Optional[bool] = True) -> str:
         """
-        Synchronous version of the price forecast tool.
+        Synchronous version of the enhanced price analysis tool.
         """
         try:
-            logging.info(f"Running Price Forecast tool for commodity: {commodity}")
+            logging.info(f"Running Enhanced Price Analysis tool for commodity: {commodity}")
             
             # Fetch data from API
             records = self._fetch_commodity_prices(
@@ -327,31 +464,42 @@ class MandiPriceForecastTool(BaseTool):
             if df.empty:
                 return f"❌ No valid price data found for {commodity}."
             
-            # Calculate statistics
+            # Calculate overall statistics
             stats = self._calculate_price_statistics(df)
             
+            # Get historical analysis
+            historical_analysis = {}
+            if include_historical_analysis:
+                historical_analysis = self._get_historical_analysis(df, historical_days or 10)
+            
             # Generate forecast
-            forecast = self._simple_price_forecast(df, forecast_days or 7)
+            forecast = {}
+            if include_future_forecast:
+                forecast = self._simple_price_forecast(df, forecast_days or 7)
             
-            # Generate report
-            report = self._generate_price_report(df, stats, forecast, 
-                                               commodity=commodity, state=state, 
-                                               district=district, market=market)
+            # Generate comprehensive report
+            report = self._generate_comprehensive_report(
+                df, stats, historical_analysis, forecast, 
+                include_historical_analysis, include_future_forecast,
+                commodity=commodity, state=state, district=district, market=market
+            )
             
-            logging.info(f"Price forecast generated successfully for {commodity}")
+            logging.info(f"Enhanced price analysis generated successfully for {commodity}")
             return report
             
         except Exception as e:
-            logging.error(f"Error in Price Forecast Tool: {str(e)}")
+            logging.error(f"Error in Enhanced Price Analysis Tool: {str(e)}")
             raise CustomException(e, sys) from e
         
     async def _arun(self, commodity: str, state: Optional[str] = None, district: Optional[str] = None, 
-                   market: Optional[str] = None, days: Optional[int] = 10, forecast_days: Optional[int] = 7) -> str:
+                   market: Optional[str] = None, historical_days: Optional[int] = 10, 
+                   forecast_days: Optional[int] = 7, include_historical_analysis: Optional[bool] = True,
+                   include_future_forecast: Optional[bool] = True) -> str:
         """
-        Asynchronous version of the price forecast tool.
+        Asynchronous version of the enhanced price analysis tool.
         """
         try:
-            logging.info(f"Running async Price Forecast tool for commodity: {commodity}")
+            logging.info(f"Running async Enhanced Price Analysis tool for commodity: {commodity}")
             
             # Use asyncio.to_thread for async execution
             records = await asyncio.to_thread(
@@ -375,20 +523,33 @@ class MandiPriceForecastTool(BaseTool):
             # Calculate statistics
             stats = await asyncio.to_thread(self._calculate_price_statistics, df)
             
-            # Generate forecast
-            forecast = await asyncio.to_thread(self._simple_price_forecast, df, forecast_days or 7)
+            # Get historical analysis
+            historical_analysis = {}
+            if include_historical_analysis:
+                historical_analysis = await asyncio.to_thread(
+                    self._get_historical_analysis, df, historical_days or 10
+                )
             
-            # Generate report
+            # Generate forecast
+            forecast = {}
+            if include_future_forecast:
+                forecast = await asyncio.to_thread(
+                    self._simple_price_forecast, df, forecast_days or 7
+                )
+            
+            # Generate comprehensive report
             report = await asyncio.to_thread(
-                self._generate_price_report, df, stats, forecast, 
+                self._generate_comprehensive_report,
+                df, stats, historical_analysis, forecast, 
+                include_historical_analysis, include_future_forecast,
                 commodity=commodity, state=state, district=district, market=market
             )
             
-            logging.info(f"Price forecast generated successfully for {commodity}")
+            logging.info(f"Enhanced price analysis generated successfully for {commodity}")
             return report
             
         except Exception as e:
-            logging.error(f"Error in async Price Forecast Tool: {str(e)}")
+            logging.error(f"Error in async Enhanced Price Analysis Tool: {str(e)}")
             raise CustomException(e, sys) from e
 
     def get_available_commodities(self) -> List[str]:
@@ -426,37 +587,45 @@ mandi_report_tool = MandiPriceForecastTool()
 
         
 if __name__ == "__main__":
-    async def test_price_forecast():
-        """Test the price forecast tool with various commodities."""
+    async def test_enhanced_analysis():
+        """Test the enhanced analysis tool with both historical and future analysis."""
         
-        print("🔮 Testing Mandi Price Forecast Tool")
-        print("=" * 50)
+        print("🔮 Testing Enhanced Mandi Price Analysis Tool")
+        print("=" * 60)
         
-        forecast_tool = MandiPriceForecastTool()
+        analysis_tool = MandiPriceForecastTool()
         
-        # Test 1: Wheat price forecast
-        print("\n🌾 Test 1: Wheat Price Forecast")
-        result1 = await forecast_tool._arun(commodity="Rice", state="Uttar Pradesh",days = 10 )
+        # Test 1: Full analysis (both historical and future)
+        print("\n🌾 Test 1: Complete Analysis - Rice (Historical + Future)")
+        result1 = await analysis_tool._arun(
+            commodity="Rice", 
+            state="Uttar Pradesh",
+            historical_days=15,
+            forecast_days=10,
+            include_historical_analysis=True,
+            include_future_forecast=True
+        )
         print(result1)
         
-        # # Test 2: Rice price forecast
-        # print("\n🍚 Test 2: Rice Price Forecast")
-        # result2 = await forecast_tool._arun(commodity="Rice", forecast_days=5)
-        # print(result2)
+        # Test 2: Only historical analysis
+        print("\n📅 Test 2: Historical Analysis Only - Wheat")
+        result2 = await analysis_tool._arun(
+            commodity="Wheat",
+            historical_days=20,
+            include_historical_analysis=True,
+            include_future_forecast=False
+        )
+        print(result2)
         
-        # # Test 3: Onion price forecast (commonly volatile)
-        # print("\n🧅 Test 3: Onion Price Forecast")
-        # result3 = await forecast_tool._arun(commodity="Onion", forecast_days=10)
-        # print(result3)
-        
-        # # Test 4: Get available commodities
-        # print("\n📋 Test 4: Available Commodities")
-        # commodities = forecast_tool.get_available_commodities()
-        # print(f"Found {len(commodities)} commodities:")
-        # for i, commodity in enumerate(commodities[:20]):  # Show first 20
-        #     print(f"  {i+1}. {commodity}")
-        # if len(commodities) > 20:
-        #     print(f"  ... and {len(commodities)-20} more")
+        # Test 3: Only future forecast
+        print("\n🔮 Test 3: Future Forecast Only - Onion")
+        result3 = await analysis_tool._arun(
+            commodity="Onion",
+            forecast_days=7,
+            include_historical_analysis=False,
+            include_future_forecast=True
+        )
+        print(result3)
     
     # Run the test
-    asyncio.run(test_price_forecast())
+    asyncio.run(test_enhanced_analysis())
