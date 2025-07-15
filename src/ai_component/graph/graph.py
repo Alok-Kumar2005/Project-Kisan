@@ -20,6 +20,13 @@ from src.ai_component.graph.nodes import (
 from src.ai_component.graph.edges import select_workflow, should_continue, select_output_workflow
 import asyncio
 from typing import Optional
+from opik.integrations.langchain import OpikTracer
+from dotenv import load_dotenv
+load_dotenv()
+
+os.environ["OPIK_API_KEY"] = os.getenv("OPIK_API_KEY")
+os.environ["OPIK_WORKSPACE"] = os.getenv("OPIK_WORKSPACE")
+os.environ["OPIK_PROJECT_NAME"] = os.getenv("OPIK_PROJECT_NAME")
 
 # Global memory saver instance
 memory_saver = MemorySaver()
@@ -130,6 +137,8 @@ def create_async_workflow_graph():
 
 
 async_graph = create_async_workflow_graph()
+tracer = OpikTracer(graph=async_graph.get_graph(xray=True))
+
 try:
     img_data = async_graph.get_graph().draw_mermaid_png()
     with open("workflow.png", "wb") as f:
@@ -164,14 +173,13 @@ async def process_query_async(
         "workflow": workflow
     }
     
-    # Configuration for memory management
     if config is None:
         config = {
             "configurable": {
                 "thread_id": thread_id
-            }
+            },
+            "callbacks": [tracer]
         }
-    
     result = await async_graph.ainvoke(initial_state, config=config)
     return result
 
@@ -179,7 +187,7 @@ async def process_query_async(
 if __name__ == "__main__":
     async def test_async_execution():
         # Simple test
-        query = "Can you forecast the Rice prices in Varanasi Mandi, of India of next 5 days via image"
+        query = "Can you tell me the today weather condition of Varanasi Uttar Pradesh, India via Image"
         result = await process_query_async(query)
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:

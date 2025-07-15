@@ -1,4 +1,46 @@
-router_template="""
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
+
+import opik
+from src.ai_component.logger import logging
+from src.ai_component.exception import CustomException
+from dotenv import load_dotenv
+load_dotenv()
+
+os.environ["OPIK_API_KEY"] = os.getenv("OPIK_API_KEY")
+os.environ["OPIK_WORKSPACE"] = os.getenv("OPIK_WORKSPACE")
+os.environ["OPIK_PROJECT_NAME"] = os.getenv("OPIK_PROJECT_NAME")
+class Prompt:
+    def __init__(self, name: str, prompt: str) -> None:
+        self.name = name
+
+        try:
+            self.__prompt = opik.Prompt(name=name, prompt=prompt)
+        except Exception:
+            logging.warning(
+                "Can't use Opik to version the prompt (probably due to missing or invalid credentials). Falling back to local prompt. The prompt is not versioned, but it's still usable."
+            )
+
+            self.__prompt = prompt
+
+    @property
+    def prompt(self) -> str:
+        if isinstance(self.__prompt, opik.Prompt):
+            return self.__prompt.prompt
+        else:
+            return self.__prompt
+
+    def __str__(self) -> str:
+        return self.prompt
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+
+
+
+__router_template="""
 You are a routing system that determines the type of response based on the user's query.
 Given the query: "{query}", determine the type of response needed.
         
@@ -17,8 +59,13 @@ The possible form of output in whcih user want:
 
 Return only the type of response as a string.
 """
+router_template = Prompt(
+    name="router_prompt",
+    prompt=__router_template,
+)
 
-general_template = """
+
+__general_template = """
 You are Ramesh Kumar, a knowledgeable and friendly AI assistant specialized in agriculture and farming. You are designed to help farmers and agricultural professionals with their queries related to:
 
 - Agriculture practices and techniques
@@ -52,8 +99,13 @@ Most Important: Always interact with user in friendly and respectful manner ans 
 Now, please respond to the user's query in a helpful, knowledgeable manner while maintaining your identity as Ramesh Kumar and incorporating your current activity naturally into the conversation.
 """
 
+general_template = Prompt(
+    name="general_template",
+    prompt=__general_template,
+)
 
-disease_template = """
+
+__disease_template = """
 You are Ramesh Kumar, an AI assistant specialized in plant diseases. Your task is to provide accurate and helpful information about plant diseases, symptoms, and treatments.
 
 When a farmer asks about plant diseases, you should:
@@ -81,8 +133,12 @@ For the query: {query}
 First, search for relevant information using the available tools, then provide a comprehensive answer with specific treatment recommendations.
 """
 
+disease_template = Prompt(
+    name="disease_template",
+    prompt=__disease_template,
+)
 
-weather_template = """
+__weather_template = """
 You are a weather expert AI assistant. Your task is to provide accurate and helpful information about weather conditions, forecasts, and climate-related queries.
 Today's date is {date}.
 
@@ -114,8 +170,12 @@ For the query: {query}
 Use the web search tool to find current weather information and forecasts, then provide a comprehensive weather report.
 """
 
+weather_template = Prompt(
+    name="weather_template",
+    prompt=__weather_template,
+)
 
-mandi_template = """
+__mandi_template = """
 You are a specialized mandi price forecast analyst. Your task is to provide detailed market reports and price forecasts as per the user query.
 
 For generating comprehensive reports, you need to gather the following information from the user:
@@ -157,8 +217,12 @@ Key capabilities of your tool:
 Always provide answers in a detailed, structured format with proper formatting and emojis for better readability.
 """
 
+mandi_template = Prompt(
+    name="mandi_template",
+    prompt=__mandi_template,
+)
 
-image_template = """
+__image_template = """
 You are an AI assistant specialized in converting text into optimized image generation prompts. Your task is to analyze the input text and create a detailed, visual prompt that will help an image generation model produce the best possible image.
 
 INSTRUCTIONS:
@@ -198,8 +262,12 @@ ANALYSIS AND OUTPUT:
 First, briefly analyze what type of content this is, then provide the optimized image generation prompt following the appropriate format above.
 """
 
+image_template = Prompt(
+    name="image_template",
+    prompt=__image_template,
+)
 
-memory_template1 = """
+__memory_template1 = """
 You are an helpful AI Assistant that finds weather to store the conversation between the user and LLM in Long Term Memroy or not.
 
 Some important to keep in mind for storing the conversation
@@ -211,8 +279,12 @@ Some important to keep in mind for storing the conversation
 
 Conversation : {conversation}
 """
+memory_template1 = Prompt(
+    name="memory_template1",
+    prompt=__memory_template1,
+)
 
-memory_template2 = """
+__memory_template2 = """
 You are an helpful as Assistant and your task is to summarize the given conversation
 You get a user question and response from LLM and you task is to give the short and detailed summary of it
 
@@ -222,3 +294,7 @@ Some important things you have to remember
 
 Conversation : {conversation}
 """
+memory_template2 = Prompt(
+    name="memory_template2",
+    prompt=__memory_template2,
+)

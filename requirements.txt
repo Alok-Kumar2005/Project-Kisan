@@ -16,4 +16,5 @@ lxml
 html5lib
 together
 qdrant-client
+opik
 -e .

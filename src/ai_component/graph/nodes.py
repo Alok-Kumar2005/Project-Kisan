@@ -72,7 +72,7 @@ async def GeneralNode(state: AICompanionState) -> dict:
         history_text = "\n".join(m.content for m in state["messages"])
         prompt = PromptTemplate(
             input_variables=["history", "current_activity", "query"],
-            template=general_template
+            template=general_template.prompt
         )
         factory = LLMChainFactory(model_type="groq")
         chain = await factory.get_llm_chain_async(prompt)
@@ -110,7 +110,7 @@ async def DiseaseNode(state: AICompanionState) -> dict:
             return {"messages": messages + [AIMessage(content=resp.content)]}
         # otherwise, call tools as needed
         query = last.content
-        prompt = PromptTemplate(input_variables=["history", "query"], template=disease_template)
+        prompt = PromptTemplate(input_variables=["history", "query"], template=disease_template.prompt)
         factory = LLMChainFactory(model_type="groq")
         chain = await factory.get_llm_tool_chain(prompt, [web_tool, rag_tool])
         resp = await chain.ainvoke({"history": history_text, "query": query})
@@ -146,7 +146,7 @@ async def WeatherNode(state: AICompanionState) -> dict:
             return {"messages": messages + [AIMessage(content=resp.content)]}
         # initial branch
         query = last.content
-        prompt = PromptTemplate(input_variables=["date","history","query"], template=weather_template)
+        prompt = PromptTemplate(input_variables=["date","history","query"], template=weather_template.prompt)
         chain = await LLMChainFactory(model_type="groq").get_llm_tool_chain(prompt, [weather_forecast_tool, weather_report_tool])
         resp = await chain.ainvoke({
             "date": datetime.now().strftime("%Y-%m-%d"),
@@ -183,7 +183,7 @@ async def MandiNode(state: AICompanionState) -> dict:
             })
             return {"messages": messages + [AIMessage(content=resp.content)]}
         query = last.content
-        prompt = PromptTemplate(input_variables=["date","history","query"], template=mandi_template)
+        prompt = PromptTemplate(input_variables=["date","history","query"], template=mandi_template.prompt)
         chain = await LLMChainFactory(model_type="groq").get_llm_tool_chain(prompt, [mandi_report_tool])
         resp = await chain.ainvoke({
             "date": datetime.now().strftime("%Y-%m-%d"),
@@ -270,7 +270,7 @@ async def ImageNode(state: AICompanionState) -> dict:
         logging.info("Calling ImageNode")
         messages = state["messages"]
         query = messages[-1].content
-        prompt = PromptTemplate(input_variables=["text"], template=image_template)
+        prompt = PromptTemplate(input_variables=["text"], template=image_template.prompt)
         factory = LLMChainFactory(model_type="gemini")
         chain = await factory.get_llm_chain_async(prompt)
         img_prompt = (await chain.ainvoke({"text": query})).content
