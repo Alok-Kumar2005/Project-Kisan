@@ -197,3 +197,28 @@ INPUT TEXT: {text}
 ANALYSIS AND OUTPUT:
 First, briefly analyze what type of content this is, then provide the optimized image generation prompt following the appropriate format above.
 """
+
+
+memory_template1 = """
+You are an helpful AI Assistant that finds weather to store the conversation between the user and LLM in Long Term Memroy or not.
+
+Some important to keep in mind for storing the conversation
+- Always choose that conversation, which may be used in future 
+- User query about weather condition are not that much important, so need not to store
+- query like disease in plants spreading, mandi prices of commodity, should be store
+- normal conversation need not to store
+- You have to respond in "Yes" or "No" only
+
+Conversation : {conversation}
+"""
+
+memory_template2 = """
+You are an helpful as Assistant and your task is to summarize the given conversation
+You get a user question and response from LLM and you task is to give the short and detailed summary of it
+
+Some important things you have to remember
+- if conversatons have any numerical data, then it should be in summary
+- summary should be short and store all important thing
+
+Conversation : {conversation}
+"""

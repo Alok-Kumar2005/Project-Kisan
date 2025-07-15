@@ -159,6 +159,7 @@ async def process_query_async(
     """
     initial_state = {
         "messages": [{"role": "user", "content": query}],
+        "collection_name": "vishu",
         "current_activity": "",
         "workflow": workflow
     }
@@ -178,7 +179,7 @@ async def process_query_async(
 if __name__ == "__main__":
     async def test_async_execution():
         # Simple test
-        query = "Can you give me the forecast of weather of Delhi, India of next 10 days in Image format"
+        query = "Can you forecast the Rice prices in Varanasi Mandi, of India of next 5 days via image"
         result = await process_query_async(query)
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:

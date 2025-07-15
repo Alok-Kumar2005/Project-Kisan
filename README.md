@@ -12,6 +12,10 @@ uv venv
 uv pip install -r requirements.txt
 ```
 
+- run docker in Project-Kisan folder
+``` docker run -p 6333:6333 -v .:/qdrant/storage qdrant/qdrant ```
+
+
 ## 📁 Project Structure
 
 ```

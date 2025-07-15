@@ -13,6 +13,7 @@ from src.ai_component.tools.web_seach_tool import web_tool
 from src.ai_component.tools.rag_tool import rag_tool
 from src.ai_component.tools.weather_tool import weather_forecast_tool, weather_report_tool
 from src.ai_component.tools.mandi_report_tool import mandi_report_tool
+from src.ai_component.modules.memory.memory_manager import memory_manager
 from src.ai_component.logger import logging
 from src.ai_component.exception import CustomException
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
@@ -228,9 +229,37 @@ async def CarbonFootprintNode(state: AICompanionState) -> dict:
 
 async def MemoryIngestionNode(state: AICompanionState) -> dict:
     """
-    Persist full conversation to memory saver.
+    Persist only the last user query and final LLM response to memory.
     """
-    return {"messages": state["messages"]}
+    try:
+        logging.info("Memory Ingestion Node -----------")
+        messages = state["messages"]
+        ### finding last user query
+        last_user_message = None
+        for message in reversed(messages):
+            if isinstance(message, HumanMessage):
+                last_user_message = message.content
+                break
+        ### finding last AI Message
+        last_ai_message = None
+        for message in reversed(messages):
+            if isinstance(message, AIMessage):
+                last_ai_message = message.content
+                break
+        
+        ### only store if we get both
+        if last_user_message and last_ai_message:
+            conversation = f"User: {last_user_message}\nAI: {last_ai_message}"
+            
+            # Store in memory with the conversation content
+            await memory_manager.store_in_memory(state["collection_name"], conversation)
+        else:
+            logging.info("No valid query-response pair found to store")
+        
+        return {}
+    except CustomException as e:
+        logging.error(f"Error in Memory Ingestion Node: {str(e)}")
+        raise CustomException(e, sys) from e
 
 
 async def ImageNode(state: AICompanionState) -> dict:
