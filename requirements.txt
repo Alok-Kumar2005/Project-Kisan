@@ -17,4 +17,11 @@ html5lib
 together
 qdrant-client
 opik
+fastapi
+uvicorn
+streamlit
+assemblyai
+audio-recorder-streamlit
+cartesia
+soundfile
 -e .

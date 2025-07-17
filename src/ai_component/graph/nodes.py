@@ -2,7 +2,13 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
+import io
+import wave
+import struct
+import base64
 import asyncio
+import tempfile
+from cartesia import Cartesia
 from datetime import datetime
 from src.ai_component.graph.utils.chains import async_router_chain
 from src.ai_component.llm import LLMChainFactory
@@ -18,7 +24,17 @@ from src.ai_component.logger import logging
 from src.ai_component.exception import CustomException
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from langchain_core.prompts import PromptTemplate
+from dotenv import load_dotenv
 
+load_dotenv()
+
+cartesia_client = None
+try:
+    cartesia_api_key = os.getenv('CARTESIA_API_KEY')
+    if cartesia_api_key:
+        cartesia_client = Cartesia(api_key=cartesia_api_key)
+except Exception as e:
+    logging.error(f"Failed to initialize Cartesia client: {str(e)}")
 
 async def route_node(state: AICompanionState) -> dict:
     """
@@ -289,10 +305,49 @@ async def VoiceNode(state: AICompanionState) -> dict:
     try:
         logging.info("Calling VoiceNode")
         messages = state["messages"]
-        text = messages[-1].content
-        # stub for voice
-        voice_bytes = b"..."
-        return {"messages": messages, "voice": voice_bytes}
+        response_text = messages[-1].content
+        if not response_text:
+            return {"audio": ""}
+        
+        if not cartesia_client:
+            logging.error("Cartesia client not initialized")
+            return {"audio": ""}
+        voice_id = "ef8390dc-0fc0-473b-bbc0-7277503793f7"
+
+        audio_generator = cartesia_client.tts.bytes(
+            model_id="sonic",
+            transcript=response_text,
+            voice={
+                "mode": "id",
+                "id": voice_id
+            },
+            language="en",
+            output_format={
+                "container": "raw",
+                "sample_rate": 16000,
+                "encoding": "pcm_f32le"
+            }
+        )
+        # Collect all audio chunks
+        audio_chunks = []
+        for chunk in audio_generator:
+            audio_chunks.append(chunk)
+        
+        # Combine all chunks into a single bytes object
+        audio_data = b''.join(audio_chunks)
+
+        wav_buffer = io.BytesIO()
+        with wave.open(wav_buffer, 'wb') as wav_file:
+            wav_file.setnchannels(1) 
+            wav_file.setsampwidth(4)  
+            wav_file.setframerate(16000)
+            wav_file.writeframes(audio_data)
+        
+        wav_buffer.seek(0)
+        wav_bytes = wav_buffer.read()
+        audio_base64 = base64.b64encode(wav_bytes).decode('utf-8')
+
+        return {"messages": response_text, "voice": audio_base64}
     except CustomException as e:
         logging.error(f"Error in VoiceNode: {e}")
         raise CustomException(e, sys) from e

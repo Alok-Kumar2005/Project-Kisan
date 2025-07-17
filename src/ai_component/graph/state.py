@@ -10,4 +10,4 @@ class AICompanionState(MessagesState):
     output: str
     current_activity: str
     image: bytes
-    voice: str
+    voice: bytes
