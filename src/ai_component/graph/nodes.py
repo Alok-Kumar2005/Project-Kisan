@@ -90,7 +90,7 @@ async def GeneralNode(state: AICompanionState) -> dict:
             input_variables=["history", "current_activity", "query"],
             template=general_template.prompt
         )
-        factory = LLMChainFactory(model_type="gemini")
+        factory = LLMChainFactory(model_type="groq")
         chain = await factory.get_llm_chain_async(prompt)
         response = await chain.ainvoke({
             "history": history_text,
@@ -127,7 +127,7 @@ async def DiseaseNode(state: AICompanionState) -> dict:
         # otherwise, call tools as needed
         query = last.content
         prompt = PromptTemplate(input_variables=["history", "query"], template=disease_template.prompt)
-        factory = LLMChainFactory(model_type="gemini")
+        factory = LLMChainFactory(model_type="groq")
         chain = await factory.get_llm_tool_chain(prompt, [web_tool, rag_tool])
         resp = await chain.ainvoke({"history": history_text, "query": query})
         if hasattr(resp, 'tool_calls') and resp.tool_calls:
@@ -163,7 +163,7 @@ async def WeatherNode(state: AICompanionState) -> dict:
         # initial branch
         query = last.content
         prompt = PromptTemplate(input_variables=["date","history","query"], template=weather_template.prompt)
-        chain = await LLMChainFactory(model_type="gemini").get_llm_tool_chain(prompt, [weather_forecast_tool, weather_report_tool])
+        chain = await LLMChainFactory(model_type="groq").get_llm_tool_chain(prompt, [weather_forecast_tool, weather_report_tool])
         resp = await chain.ainvoke({
             "date": datetime.now().strftime("%Y-%m-%d"),
             "history": history_text,
@@ -200,7 +200,7 @@ async def MandiNode(state: AICompanionState) -> dict:
             return {"messages": messages + [AIMessage(content=resp.content)]}
         query = last.content
         prompt = PromptTemplate(input_variables=["date","history","query"], template=mandi_template.prompt)
-        chain = await LLMChainFactory(model_type="gemini").get_llm_tool_chain(prompt, [mandi_report_tool])
+        chain = await LLMChainFactory(model_type="groq").get_llm_tool_chain(prompt, [mandi_report_tool])
         resp = await chain.ainvoke({
             "date": datetime.now().strftime("%Y-%m-%d"),
             "history": history_text,
@@ -358,41 +358,3 @@ async def TextNode(state: AICompanionState) -> dict:
     Pass-through final text output.
     """
     return {"messages": state["messages"]}
-
-async def VideoNode(state: AICompanionState) -> dict:
-    """
-    Generate the video for farmer using the fixed implementation.
-    """
-    try:
-        logging.info("Calling VideoNode with fixed implementation")
-        messages = state["messages"]
-        message = messages[-1].content
-
-        factory = LLMChainFactory(model_type="gemini")
-        
-        # Generate video with proper error handling
-        video_bytes, video_info = await factory.get_video_model_async(
-            prompt=message,
-            duration=15,
-            quality="720p"
-        )
-        
-        logging.info(f"VideoNode generated video: {len(video_bytes)} bytes")
-        
-        return {
-            "messages": message,
-            "video": video_bytes,
-            "video_info": video_info
-        }
-        
-    except CustomException as e:
-        logging.error(f"Error in VideoNode: {str(e)}")
-        # Return fallback response instead of failing completely
-        return {
-            "messages": f"Sorry, video generation failed: {str(e)}",
-            "video": b"",  # Empty bytes as fallback
-            "video_info": "Video generation failed"
-        }
-    except Exception as e:
-        logging.error(f"Unexpected error in VideoNode: {str(e)}")
-        raise CustomException(e, sys) from e

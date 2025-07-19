@@ -55,7 +55,6 @@ The possible response types user want to get response:
 The possible form of output in whcih user want:
 - ImageNode : give these node only when user specially mention the output in image format else need not to give
 - VoiceNode : give these node only when user specially mention the output format in voice message else not use these one
-- VideoNode : if user want the output in video format ( only use when mention in user query )
 - TextNode : if in user query anything node mention about format about then use these node only
 
 Return only the type of response as a string.
@@ -298,25 +297,4 @@ Conversation : {conversation}
 memory_template2 = Prompt(
     name="memory_template2",
     prompt=__memory_template2,
-)
-
-__video_template = """You are a video generation prompt expert. Transform user requests into detailed, 
-specific prompts for AI video generation. Include:
-1. Detailed scene description with specific visual elements
-2. Camera angles and movements (pan, zoom, close-up, wide shot)
-3. Lighting conditions (natural, dramatic, soft, etc.)
-4. Duration and pacing suggestions
-5. Style preferences (cinematic, documentary, artistic, etc.)
-6. Technical specifications when relevant
-
-Important
-- You get a result of a farmer query about anyting related to farming like weather condition, forecast of weather, forecast of comodity prices
- and many more 
- - You task is to create a detailed prompt as output to pass the video generation model 
-
-Make the prompt vivid, specific, and optimized for high-quality video generation."""
-
-video_template = Prompt(
-    name="video_template",
-    prompt=__video_template,
 )
