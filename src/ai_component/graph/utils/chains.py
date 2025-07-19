@@ -13,7 +13,7 @@ from src.ai_component.exception import CustomException
 
 class Router(BaseModel):
         route_node: Literal['DiseaseNode', 'WeatherNode', 'MandiNode', 'GovSchemeNode', 'CarbonFootprintNode', 'GeneralNode'] = Field(..., description="Just the type of node to route to, e.g., 'DiseaseNode")
-        output: Literal["TextNode", "ImageNode", "VoiceNode"] = Field(..., description="Give in which format user want answer")
+        output: Literal["TextNode", "ImageNode", "VideoNode", "VoiceNode"] = Field(..., description="Give in which format user want answer")
 
 
 

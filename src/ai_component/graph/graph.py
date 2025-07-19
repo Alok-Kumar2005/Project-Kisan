@@ -125,8 +125,8 @@ def create_async_workflow_graph():
         {
             "ImageNode": "ImageNode",
             "VoiceNode": "VoiceNode",
-            "TextNode": "TextNode",
-            "VideoNode": "VideoNode"
+            "VideoNode": "VideoNode",
+            "TextNode": "TextNode"
         }
     )
 

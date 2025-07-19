@@ -34,7 +34,7 @@ top_database_search = 10
 
 
 
-video_model_name = "gemini-2.0-flash-exp"  # or your preferred video model
-video_duration = 10  # default duration in seconds
-video_quality = "720p"  # default quality
+video_model_name = "veo-3.0-generate-preview"  # Updated to use Veo 3
+video_duration = 15  # seconds
+video_quality = "720p"
 video_fps = 24

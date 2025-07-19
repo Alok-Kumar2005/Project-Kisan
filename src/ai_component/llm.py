@@ -15,7 +15,8 @@ import asyncio
 from typing import Annotated, Dict, Any, Optional, Tuple
 from langchain_core.messages import BaseMessage
 from typing_extensions import TypedDict
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import base64
 import time
 import tempfile
@@ -53,15 +54,16 @@ class LLMChainFactory:
         self.imgClient = Together()
         
         # Video generation config
-        self.video_model_name = video_model_name
-        self.video_duration = video_duration
-        self.video_quality = video_quality
-        self.video_fps = video_fps
+        self.video_model_name = "veo-3.0-generate-preview"  # Use Veo 3
+        self.video_duration = 15
+        self.video_quality = "720p"
+        self.video_fps = 24
         
         # Initialize Google Generative AI for video generation
         if self.google_api_key:
-            genai.configure(api_key=self.google_api_key)
-            self.video_model = genai.GenerativeModel(self.video_model_name)
+            self.genai_client = genai.Client(api_key=self.google_api_key)
+        else:
+            raise ValueError("Google API key is required for video generation")
 
     def _get_llm(self):
         """
@@ -249,8 +251,8 @@ class LLMChainFactory:
             logging.info("Enhancing video prompt with LangChain")
             
             enhancement_template = ChatPromptTemplate.from_messages([
-                ("system", video_template.prompt),
-                ("human", "Transform this video request into a detailed prompt: {user_input}")
+                ("system", video_template),
+                ("human", "{user_input}")
             ])
             
             chain = await self.get_llm_chain_async(enhancement_template)
@@ -268,9 +270,11 @@ class LLMChainFactory:
     async def get_video_model_async(self, prompt: str, duration: int = None,
                                    quality: str = None, fps: int = None,
                                    reference_image: str = None) -> Tuple[bytes, str]:
-
+        """
+        Generate video using Google's Veo 3.0 API with proper async handling.
+        """
         try:
-            logging.info("Calling async video model")
+            logging.info("Starting async video generation with Veo 3.0")
             duration = duration or self.video_duration
             quality = quality or self.video_quality
             fps = fps or self.video_fps
@@ -280,83 +284,117 @@ class LLMChainFactory:
             
             # Enhance prompt using async method
             enhanced_prompt = await self._enhance_video_prompt_async(prompt)
+            logging.info(f"Enhanced prompt: {enhanced_prompt}")
             
-            # Create video generation prompt
-            video_prompt = f"""Generate a high-quality video: {enhanced_prompt}
-            
-Technical specs: {duration}s, {quality}, {fps}fps, 16:9 aspect ratio, cinematic style."""
-
-            # Handle reference image if provided
-            content_parts = [video_prompt]
-            if reference_image:
-                try:
-                    if reference_image.startswith('http'):
-                        img_response = requests.get(reference_image)
-                        img_data = img_response.content
-                    else:
-                        with open(reference_image, 'rb') as f:
-                            img_data = f.read()
-                    
-                    content_parts.append({
-                        "mime_type": "image/jpeg",
-                        "data": base64.b64encode(img_data).decode()
-                    })
-                except Exception as img_error:
-                    logging.warning(f"Could not process reference image: {img_error}")
-
-            # Generate video using async executor
+            # Generate video using async executor to avoid blocking
             loop = asyncio.get_event_loop()
             
-            def _generate_video():
+            def _generate_video_sync():
+                """Synchronous video generation to run in executor"""
                 try:
-                    response = self.video_model.generate_content(
-                        content_parts,
-                        generation_config=genai.types.GenerationConfig(
-                            max_output_tokens=2048,
-                            temperature=0.7,
-                            top_p=0.9,
-                        )
+                    logging.info("Starting Veo 3.0 video generation operation")
+                    
+                    # Create the video generation operation
+                    operation = self.genai_client.models.generate_videos(
+                        model=self.video_model_name,
+                        prompt=enhanced_prompt,
+                        config=types.GenerateVideosConfig(
+                            person_generation="allow_all",
+                            aspect_ratio="16:9",
+                        ),
                     )
-                    return response
+                    
+                    logging.info(f"Video generation operation started: {operation.name}")
+                    
+                    # Poll for completion with timeout
+                    max_wait_time = 300  # 5 minutes timeout
+                    start_time = time.time()
+                    
+                    while not operation.done:
+                        if time.time() - start_time > max_wait_time:
+                            raise TimeoutError("Video generation timed out after 5 minutes")
+                        
+                        logging.info("Waiting for video generation to complete...")
+                        time.sleep(10)  # Check every 10 seconds
+                        
+                        # Refresh operation status
+                        operation = self.genai_client.operations.get(operation)
+                        
+                        if operation.error:
+                            raise Exception(f"Video generation failed: {operation.error}")
+                    
+                    logging.info("Video generation completed successfully")
+                    
+                    # Extract the first generated video
+                    if not operation.response.generated_videos:
+                        raise Exception("No videos were generated")
+                    
+                    generated_video = operation.response.generated_videos[0]
+                    
+                    # Download the video as bytes
+                    video_file = generated_video.video
+                    video_bytes = self.genai_client.files.download(file=video_file)
+                    
+                    # Create video info
+                    video_info = {
+                        "original_prompt": prompt,
+                        "enhanced_prompt": enhanced_prompt,
+                        "duration": duration,
+                        "quality": quality,
+                        "fps": fps,
+                        "model": self.video_model_name,
+                        "timestamp": time.time(),
+                        "operation_name": operation.name,
+                        "video_size_bytes": len(video_bytes),
+                        "aspect_ratio": "16:9"
+                    }
+                    
+                    logging.info(f"Video generation successful. Size: {len(video_bytes)} bytes")
+                    return video_bytes, video_info
+                    
                 except Exception as e:
-                    logging.error(f"Video generation API call failed: {str(e)}")
-                    return None
-
-            # Execute video generation
-            result = await loop.run_in_executor(None, _generate_video)
+                    logging.error(f"Synchronous video generation failed: {str(e)}")
+                    raise e
             
-            if result and hasattr(result, 'text'):
-                # In actual implementation, extract video URL from result
-                # For now, simulate
-                mock_video_url = "https://example.com/generated_video.mp4"
-                
-                # Convert to bytes (in real implementation)
-                # video_bytes = self._convert_url_to_bytes(mock_video_url)
-                
-                # Mock implementation
-                video_bytes = b"async_video_data_" + enhanced_prompt.encode()[:100]
-            else:
-                # Fallback
-                video_bytes = b"fallback_video_data_" + prompt.encode()[:100]
+            # Run the synchronous video generation in a thread executor
+            video_bytes, video_info = await loop.run_in_executor(None, _generate_video_sync)
             
-            # Create metadata info for LangGraph
-            video_info = f"""{{
-                "original_prompt": "{prompt}",
-                "enhanced_prompt": "{enhanced_prompt}",
-                "duration": {duration},
-                "quality": "{quality}",
-                "fps": {fps},
-                "model": "{self.video_model_name}",
-                "timestamp": {time.time()},
-                "has_reference_image": {reference_image is not None},
-                "video_size_bytes": {len(video_bytes)}
-            }}"""
-            
-            logging.info(f"Generated video bytes length: {len(video_bytes)}")
-            return video_bytes, video_info
+            return video_bytes, str(video_info)
             
         except CustomException as e:
             logging.error(f"Error in async video generation: {str(e)}")
+            raise CustomException(e, sys) from e
+        except Exception as e:
+            logging.error(f"Unexpected error in video generation: {str(e)}")
+            raise CustomException(e, sys) from e
+        
+    def save_video_bytes_to_file(self, video_bytes: bytes, filename: str = None) -> str:
+        """
+        Save video bytes to a file for testing/debugging purposes.
+        
+        Args:
+            video_bytes: The video data as bytes
+            filename: Optional filename, if not provided, creates a temp file
+            
+        Returns:
+            The path to the saved file
+        """
+        try:
+            if filename:
+                filepath = filename
+            else:
+                # Create a temporary file
+                with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as temp_file:
+                    filepath = temp_file.name
+            
+            with open(filepath, 'wb') as f:
+                f.write(video_bytes)
+            
+            logging.info(f"Video saved to: {filepath}")
+            return filepath
+            
+        except Exception as e:
+            logging.error(f"Error saving video bytes: {str(e)}")
             raise CustomException(e, sys) from e
 
 
@@ -374,9 +412,11 @@ if __name__ == "__main__":
                 duration=15,
                 quality="720p"
             )
+            print(f"Vide bytes : {video_bytes}")
             print(f"Async Video bytes length: {len(video_bytes)}")
             print(f"Video info: {video_info}")
         except Exception as e:
             print(f"Async video generation error: {e}")
 
     asyncio.run(test_refactored())
+

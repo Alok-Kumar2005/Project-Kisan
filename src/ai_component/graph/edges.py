@@ -46,7 +46,7 @@ def select_output_workflow(state: AICompanionState) -> str:
         elif output_workflow == "VoiceNode":
             return "VoiceNode"
         elif output_workflow == "VideoNode":
-            return "videoNode"
+            return "VideoNode"
         else:   
             return "TextNode" 
         logging.info(f"Selected workflow: {output_workflow}")
