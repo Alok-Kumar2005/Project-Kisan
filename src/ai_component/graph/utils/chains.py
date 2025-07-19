@@ -29,7 +29,7 @@ async def async_router_chain():
             template= router_template.prompt
         )
 
-        factory = LLMChainFactory(model_type="groq")
+        factory = LLMChainFactory(model_type="gemini")
         chain = await factory.get_structured_llm_chain_async(prompt, Router)
         
         return chain

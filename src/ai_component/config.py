@@ -1,4 +1,4 @@
-gemini_model_name = "gemini-1.5-flash"
+gemini_model_name = "gemini-2.5-pro"
 gemini_model_kwargs = {
     "temperature": 0.2,
     "top_p": 0.95,
@@ -31,3 +31,10 @@ image_url="https://imgs.search.brave.com/sYprGgU1Zl3qYed4XU19fDsWpBVFDv0RvNKEe-F
 ### memory config
 top_collection_search = 3
 top_database_search = 10
+
+
+
+video_model_name = "gemini-2.0-flash-exp"  # or your preferred video model
+video_duration = 10  # default duration in seconds
+video_quality = "720p"  # default quality
+video_fps = 24

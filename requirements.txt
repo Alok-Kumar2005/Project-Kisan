@@ -24,4 +24,5 @@ assemblyai
 audio-recorder-streamlit
 cartesia
 soundfile
+google-generativeai
 -e .

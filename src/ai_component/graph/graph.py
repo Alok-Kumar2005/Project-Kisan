@@ -15,7 +15,7 @@ from src.ai_component.graph.nodes import (
     route_node,
     context_injestion_node,MemoryIngestionNode,
     GeneralNode,DiseaseNode,WeatherNode,MandiNode,GovSchemeNode,CarbonFootprintNode,
-    ImageNode, VoiceNode , TextNode
+    ImageNode, VoiceNode , TextNode, VideoNode
 )
 from src.ai_component.graph.edges import select_workflow, should_continue, select_output_workflow
 import asyncio
@@ -57,6 +57,7 @@ def create_async_workflow_graph():
     graph_builder.add_node("ImageNode", ImageNode)
     graph_builder.add_node("VoiceNode", VoiceNode)
     graph_builder.add_node("TextNode", TextNode)
+    graph_builder.add_node("VideoNode", VideoNode)
 
     ## Adding tools
     graph_builder.add_node("disease_tools", disease_tools)
@@ -124,13 +125,15 @@ def create_async_workflow_graph():
         {
             "ImageNode": "ImageNode",
             "VoiceNode": "VoiceNode",
-            "TextNode": "TextNode"
+            "TextNode": "TextNode",
+            "VideoNode": "VideoNode"
         }
     )
 
     # End the graph after output nodes
     graph_builder.add_edge("ImageNode", END)
     graph_builder.add_edge("VoiceNode", END)
+    graph_builder.add_edge("VideoNode", END)
     graph_builder.add_edge("TextNode", END)
 
     return graph_builder.compile(checkpointer=memory_saver)
@@ -187,7 +190,7 @@ async def process_query_async(
 if __name__ == "__main__":
     async def test_async_execution():
         # Simple test
-        query = "Can you tell me the today weather condition of Varanasi Uttar Pradesh, India via voice message"
+        query = "Can you tell me the today weather condition of Varanasi Uttar Pradesh, India via video "
         result = await process_query_async(query)
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:
