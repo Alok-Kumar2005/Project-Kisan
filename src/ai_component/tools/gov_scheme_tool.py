@@ -20,17 +20,11 @@ class RAGTool(BaseTool):
     description: str = "A tool to search for relevant information about plant diseases and treatments in the RAG system based on the user's query. Use this to find specific disease information, symptoms, and treatment recommendations."
     args_schema: Type[RAGToolInput] = RAGToolInput
     
-    # Configure Pydantic to allow extra fields
     model_config = ConfigDict(extra='allow')
-    
-    # Use ClassVar for the memory object that's shared across instances
     memory: ClassVar = memory
     
-    def __init__(self, data_path: str = "data", collection_name: str = "plant_diseases_knowledge", **kwargs):
-        # Call parent init first
+    def __init__(self, data_path: str = "data", collection_name: str = "Government_scheme", **kwargs):
         super().__init__(**kwargs)
-        
-        # Set instance-specific values (these are regular instance attributes, not ClassVar)
         self.collection_name = collection_name
         self.data_path = data_path
         self.metadata_collection = f"{collection_name}_metadata"
@@ -124,8 +118,6 @@ class RAGTool(BaseTool):
         """Smart pipeline to ingest data only if needed"""
         try:
             logging.info("Running data ingestion pipeline...")
-            
-            # Check if data needs to be ingested
             status = self._is_data_ingested()
             
             if status["ingested"]:
@@ -143,10 +135,6 @@ class RAGTool(BaseTool):
             # Create collections if they don't exist
             self.memory.create_collection(self.collection_name)
             self.memory.create_collection(self.metadata_collection)
-            
-            # If collection exists but data is outdated, we might want to clear it
-            # For now, we'll just add new data (Qdrant handles duplicates)
-            
             logging.info(f"Ingesting {len(pdf_files)} PDF files...")
             
             # Ingest PDF data using existing method
@@ -243,7 +231,6 @@ class RAGTool(BaseTool):
         Sync version with automatic data pipeline.
         """
         try:
-            # Run async pipeline in sync context
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
@@ -259,13 +246,11 @@ class RAGTool(BaseTool):
     def force_reingest(self) -> bool:
         """Force re-ingestion of all data"""
         try:
-            # Delete existing collections
             if self.memory._collection_exists(self.collection_name):
                 self.memory.delete_collection(self.collection_name)
             if self.memory._collection_exists(self.metadata_collection):
                 self.memory.delete_collection(self.metadata_collection)
             
-            # Run ingestion pipeline
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
@@ -278,8 +263,7 @@ class RAGTool(BaseTool):
             logging.error(f"Error in force re-ingestion: {str(e)}")
             return False
 
-# Create the tool instance
-rag_tool = RAGTool(data_path="data", collection_name="plant_diseases_knowledge")
+gov_scheme_tool = RAGTool(data_path="data", collection_name="Government_scheme")
 
 if __name__ == "__main__":
     # Example usage - Everything is now automatic!
@@ -288,11 +272,11 @@ if __name__ == "__main__":
     tool = RAGTool(data_path="data")
     
     print("\n1️⃣ First search - will automatically ingest data if needed:")
-    result1 = tool._run("fungal diseases in plants")
+    result1 = tool._run("What are the schemes for farmers from government to grow business")
     print(result1)
     
     print("\n2️⃣ Second search - will skip ingestion since data is already there:")
-    result2 = tool._run("treatment for plant diseases")
+    result2 = tool._run("tWhat are the schemes for farmers from government to grow business")
     print(result2)
     
     print("\n3️⃣ Check ingestion status:")

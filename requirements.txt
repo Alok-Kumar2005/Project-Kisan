@@ -31,4 +31,7 @@ google-auth-oauthlib
 google-auth-httplib2
 tqdm
 unstructured
+pypdf
+pypdf2
+unstructured[pdf]
 -e .
