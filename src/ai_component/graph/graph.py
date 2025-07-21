@@ -187,7 +187,7 @@ async def process_query_async(
 if __name__ == "__main__":
     async def test_async_execution():
         # Simple test
-        query = "Can you tell me the today weather condition of Varanasi Uttar Pradesh, India via image"
+        query = "Can you forecast the price of the Onion in Uttar Pradesh market for next 4 days"
         result = await process_query_async(query)
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:

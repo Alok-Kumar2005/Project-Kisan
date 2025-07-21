@@ -3,13 +3,17 @@ import os
 from datetime import datetime
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
+import tqdm
 from typing import List, Dict, Optional
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams
 from langchain_qdrant import Qdrant
 from langchain.schema import Document
-from src.ai_component.config import top_collection_search, top_database_search
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import DirectoryLoader
+from langchain_community.document_loaders import PyPDFLoader
+from src.ai_component.config import top_collection_search, top_database_search, chunk_size, chunk_overlap
 from src.ai_component.logger import logging
 from src.ai_component.exception import CustomException
 from dotenv import load_dotenv
@@ -139,6 +143,34 @@ class LongTermMemory:
         except CustomException as e:
             logging.error(f"Error in inserting data : {str(e)}")
             raise CustomException(e, sys) from e
+
+    async def StoreInMemory2(self, collection_name: str, data_path: str, chunk_size: int = chunk_size , chunk_overlap: int= chunk_overlap) -> bool:
+        """
+        Store the PDF data in the database
+        """
+        try:
+            logging.info("Storing PDF data")
+            loader = DirectoryLoader(data_path, glob="**/*.pdf", use_multithreading=True, show_progress=True)
+            documets = loader.load()
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size = chunk_size,
+                chunk_overlap = chunk_overlap
+            )
+            texts = text_splitter.split_documents(documents=documets)
+            logging.info(f"Processing {len(texts)} text chunks for collection {collection_name}")
+            qdrant = Qdrant.from_documents(
+                texts,
+                self.embeddings,
+                url = self.qdrant_url,
+                collection_name = collection_name,
+                prefer_grpc = False
+            )
+            return True
+        except CustomException as e:
+            logging.error(f"Error in Pdf storing : {str(e)}")
+            raise CustomException(e, sys) from e
+
+
         
     def search_in_collection(self, query: str, collection_name: str, k: int = top_collection_search) -> List:
         """Search in the collection"""

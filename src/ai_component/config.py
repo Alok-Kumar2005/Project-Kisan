@@ -31,3 +31,5 @@ image_url="https://imgs.search.brave.com/sYprGgU1Zl3qYed4XU19fDsWpBVFDv0RvNKEe-F
 ### memory config
 top_collection_search = 3
 top_database_search = 10
+chunk_size: 500
+chunk_overlap: 20

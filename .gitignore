@@ -212,3 +212,4 @@ logs/
 aliases/
 collections/
 raft_state.json
+data/
