@@ -13,7 +13,7 @@ from langchain.schema import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import DirectoryLoader
 from langchain_community.document_loaders import PyPDFLoader
-from src.ai_component.config import top_collection_search, top_database_search, chunk_size, chunk_overlap
+from src.ai_component.config import top_collection_search, top_database_search
 from src.ai_component.logger import logging
 from src.ai_component.exception import CustomException
 from dotenv import load_dotenv
@@ -144,7 +144,7 @@ class LongTermMemory:
             logging.error(f"Error in inserting data : {str(e)}")
             raise CustomException(e, sys) from e
 
-    async def StoreInMemory2(self, collection_name: str, data_path: str, chunk_size: int = chunk_size , chunk_overlap: int= chunk_overlap) -> bool:
+    async def StoreInMemory2(self, collection_name: str, data_path: str, chunk_size: int = 500 , chunk_overlap: int= 20) -> bool:
         """
         Store the PDF data in the database
         """
@@ -213,8 +213,8 @@ memory = LongTermMemory()
 
 if __name__ == "__main__":
     memory = LongTermMemory()  # Fixed class name
-    # memory.create_collection("ay7472")
-    # memory.ingest_data("ay7472", "hii, My name is Alok and i am from varanasi Uttar pradesh")
+    memory.create_collection("ay7472")
+    memory.ingest_data("ay7472", "hii, My name is Alok and i am from varanasi Uttar pradesh")
 
     result = memory.search_in_collection("where alok live", "ay7472", 1)
     print(result)
