@@ -198,7 +198,7 @@ async def process_query_async(
 if __name__ == "__main__":
     async def test_async_execution():
         # Simple test
-        query = "Can you tell me about Minimum Support Price (MSP) for farmer from the government of india"
+        query = "Can you give me the forecast of the Wheat price in Uttar Pradesh India maarket of next 5 days"
         result = await process_query_async(query)
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:

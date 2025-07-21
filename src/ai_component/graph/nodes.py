@@ -269,15 +269,15 @@ Based on the mandi data above, provide a comprehensive market analysis with prop
 
 async def GovSchemeNode(state: AICompanionState) -> dict:
     """
-    Return government schemes, appending to history.
+    Handle government scheme requests, using gov_scheme_tool and web_tool, preserving history.
     """
     try:
         logging.info("Calling Gov Scheme Node")
         messages = state["messages"]
         last = messages[-1]
         
+        # Handle tool result branch
         if isinstance(last, ToolMessage):
-            # Handle tool response case
             query = next((m.content for m in reversed(messages) if isinstance(m, HumanMessage)), "")
             tool_results = "\n".join(m.content for m in messages if isinstance(m, ToolMessage))
             
@@ -285,10 +285,10 @@ async def GovSchemeNode(state: AICompanionState) -> dict:
             enhanced_template = f"""{gov_scheme_template.prompt}
 
 Original Query: {{query}}
-Tool Results:
+Government Scheme Tool Results:
 {{tool_results}}
 
-Based on the tool results above, provide a comprehensive response about the best government schemes for farmers."""
+Based on the government scheme data above, provide a comprehensive response about the relevant government schemes for farmers. Include scheme details, eligibility criteria, benefits, and application process where available. Format the response in a clear, detailed text format that can be easily understood."""
             
             prompt = PromptTemplate(
                 input_variables=["date", "query", "tool_results"], 
@@ -302,18 +302,18 @@ Based on the tool results above, provide a comprehensive response about the best
             })
             return {"messages": messages + [AIMessage(content=resp.content)]}
         
-        # Handle initial query case
+        # Handle initial query branch
         query = last.content
         prompt = PromptTemplate(
             input_variables=["date", "query"], 
             template=gov_scheme_template.prompt
         )
         
-        # KEY CHANGE: Use get_llm_chain_async and bind tools manually
-        # instead of get_llm_tool_chain
-        llm = await LLMChainFactory(model_type="gemini").get_llm_async()
-        llm_with_tools = llm.bind_tools([gov_scheme_tool, web_tool])
-        chain = prompt | llm_with_tools
+        # Use tool chain with government scheme tools
+        chain = await LLMChainFactory(model_type="gemini").get_llm_tool_chain(
+            prompt, 
+            [gov_scheme_tool, web_tool]
+        )
         
         resp = await chain.ainvoke({
             "date": datetime.now().strftime("%Y-%m-%d"),

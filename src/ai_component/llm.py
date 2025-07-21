@@ -97,6 +97,13 @@ class LLMChainFactory:
         except CustomException as e:
             logging.error(f"Error in llm chain : {str(e)}")
             raise CustomException(e, sys) from e
+        
+
+    async def get_llm_async(self):
+        """
+        Returns the appropriate LLM instance based on model type (async version).
+        """
+        return self._get_llm()
 
     async def get_structured_llm_chain_async(self, prompt: PromptTemplate | ChatPromptTemplate, output_schema: BaseModel):
         """

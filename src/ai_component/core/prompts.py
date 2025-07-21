@@ -198,6 +198,8 @@ For generating comprehensive reports, you need to gather the following informati
 6. **forecast_days** (optional): Number of days to forecast prices (default: 7, max: 15)
    - Use this when user wants price predictions
 
+Important - Optional data are not required so don't ask if not provided in query
+   
 Based on user query: {query}
 Today's date: {date}
 
