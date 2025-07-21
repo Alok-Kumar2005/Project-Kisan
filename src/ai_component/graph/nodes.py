@@ -14,9 +14,10 @@ from src.ai_component.graph.utils.chains import async_router_chain
 from src.ai_component.llm import LLMChainFactory
 from src.ai_component.modules.schedule.context_generation import ScheduleContextGenerator
 from src.ai_component.graph.state import AICompanionState
-from src.ai_component.core.prompts import general_template, disease_template, weather_template, mandi_template, image_template
+from src.ai_component.core.prompts import general_template, disease_template, weather_template, mandi_template, image_template, gov_scheme_template
 from src.ai_component.tools.web_seach_tool import web_tool
 from src.ai_component.tools.rag_tool import rag_tool
+from src.ai_component.tools.gov_scheme_tool import gov_scheme_tool
 from src.ai_component.tools.weather_tool import weather_forecast_tool, weather_report_tool
 from src.ai_component.tools.mandi_report_tool import mandi_report_tool
 from src.ai_component.modules.memory.memory_manager import memory_manager
@@ -118,7 +119,7 @@ async def DiseaseNode(state: AICompanionState) -> dict:
             # find original query
             query = next((m.content for m in reversed(messages) if isinstance(m, HumanMessage)), "")
             tool_results = "\n".join(f"Tool: {m.name}\nResult: {m.content}" for m in messages if isinstance(m, ToolMessage))
-            enhanced = f"{disease_template}\nOriginal Query: {{query}}\nTool Results:\n{{tool_results}}"
+            enhanced = f"{disease_template.prompt}\nOriginal Query: {{query}}\nTool Results:\n{{tool_results}}"
             prompt = PromptTemplate(input_variables=["query", "tool_results"], template=enhanced)
             factory = LLMChainFactory(model_type="gemini")
             chain = await factory.get_llm_chain_async(prompt)
@@ -146,13 +147,25 @@ async def WeatherNode(state: AICompanionState) -> dict:
         logging.info("Calling Weather Node")
         messages = state["messages"]
         last = messages[-1]
-        history_text = "\n".join(m.content for m in messages)
-        # tool result branch
+        
+        # Handle tool result branch
         if isinstance(last, ToolMessage):
             query = next((m.content for m in reversed(messages) if isinstance(m, HumanMessage)), "")
             tool_results = "\n".join(m.content for m in messages if isinstance(m, ToolMessage))
-            enhanced = f"{weather_template}\nOriginal Query: {{query}}\nResults:\n{{tool_results}}"
-            prompt = PromptTemplate(input_variables=["date","query","tool_results"], template=enhanced)
+            
+            # Enhanced template for processing tool results
+            enhanced_template = f"""{weather_template.prompt}
+
+Original Query: {{query}}
+Weather Tool Results:
+{{tool_results}}
+
+Based on the weather data above, provide a comprehensive weather report. Include current conditions, temperature, humidity, wind speed, and any other relevant information. Format the response in a clear, detailed text format that can be easily understood."""
+            
+            prompt = PromptTemplate(
+                input_variables=["date", "query", "tool_results"], 
+                template=enhanced_template
+            )
             chain = await LLMChainFactory(model_type="gemini").get_llm_chain_async(prompt)
             resp = await chain.ainvoke({
                 "date": datetime.now().strftime("%Y-%m-%d"),
@@ -160,18 +173,31 @@ async def WeatherNode(state: AICompanionState) -> dict:
                 "tool_results": tool_results
             })
             return {"messages": messages + [AIMessage(content=resp.content)]}
-        # initial branch
+        
+        # Handle initial query branch
         query = last.content
-        prompt = PromptTemplate(input_variables=["date","history","query"], template=weather_template.prompt)
-        chain = await LLMChainFactory(model_type="groq").get_llm_tool_chain(prompt, [weather_forecast_tool, weather_report_tool])
+        prompt = PromptTemplate(
+            input_variables=["date", "query"], 
+            template=weather_template.prompt
+        )
+        
+        # Use tool chain with weather tools
+        chain = await LLMChainFactory(model_type="gemini").get_llm_tool_chain(
+            prompt, 
+            [weather_forecast_tool, weather_report_tool]
+        )
+        
         resp = await chain.ainvoke({
             "date": datetime.now().strftime("%Y-%m-%d"),
-            "history": history_text,
             "query": query
         })
+        
+        # Check if response has tool calls
         if hasattr(resp, 'tool_calls') and resp.tool_calls:
             return {"messages": messages + [resp]}
+        
         return {"messages": messages + [AIMessage(content=resp.content)]}
+        
     except CustomException as e:
         logging.error(f"Error in WeatherNode: {e}")
         raise CustomException(e, sys) from e
@@ -185,12 +211,25 @@ async def MandiNode(state: AICompanionState) -> dict:
         logging.info("Calling Mandi Node")
         messages = state["messages"]
         last = messages[-1]
-        history_text = "\n".join(m.content for m in messages)
+        
         if isinstance(last, ToolMessage):
+            # Handle tool response case
             query = next((m.content for m in reversed(messages) if isinstance(m, HumanMessage)), "")
             tool_results = "\n".join(m.content for m in messages if isinstance(m, ToolMessage))
-            enhanced = f"{mandi_template}\nOriginal Query: {{query}}\nResults:\n{{tool_results}}"
-            prompt = PromptTemplate(input_variables=["date","query","tool_results"], template=enhanced)
+            
+            # Enhanced template for processing tool results
+            enhanced_template = f"""{mandi_template.prompt}
+
+Original Query: {{query}}
+Tool Results:
+{{tool_results}}
+
+Based on the mandi data above, provide a comprehensive market analysis with proper formatting and emojis for better readability. Include price statistics, trends, and forecasts as applicable."""
+            
+            prompt = PromptTemplate(
+                input_variables=["date", "query", "tool_results"], 
+                template=enhanced_template
+            )
             chain = await LLMChainFactory(model_type="gemini").get_llm_chain_async(prompt)
             resp = await chain.ainvoke({
                 "date": datetime.now().strftime("%Y-%m-%d"),
@@ -198,17 +237,31 @@ async def MandiNode(state: AICompanionState) -> dict:
                 "tool_results": tool_results
             })
             return {"messages": messages + [AIMessage(content=resp.content)]}
+        
+        # Handle initial query case
         query = last.content
-        prompt = PromptTemplate(input_variables=["date","history","query"], template=mandi_template.prompt)
-        chain = await LLMChainFactory(model_type="groq").get_llm_tool_chain(prompt, [mandi_report_tool])
+        prompt = PromptTemplate(
+            input_variables=["date", "query"], 
+            template=mandi_template.prompt
+        )
+        
+        # Use tool chain with mandi_price_forecast_tool (assuming this is the correct tool name)
+        chain = await LLMChainFactory(model_type="groq").get_llm_tool_chain(
+            prompt, 
+            [mandi_report_tool]  # or [mandi_price_forecast_tool] based on your actual tool name
+        )
+        
         resp = await chain.ainvoke({
             "date": datetime.now().strftime("%Y-%m-%d"),
-            "history": history_text,
             "query": query
         })
+        
+        # Check if response has tool calls
         if hasattr(resp, 'tool_calls') and resp.tool_calls:
             return {"messages": messages + [resp]}
+        
         return {"messages": messages + [AIMessage(content=resp.content)]}
+        
     except CustomException as e:
         logging.error(f"Error in MandiNode: {e}")
         raise CustomException(e, sys) from e
@@ -219,11 +272,60 @@ async def GovSchemeNode(state: AICompanionState) -> dict:
     Return government schemes, appending to history.
     """
     try:
-        logging.info("Calling GovSchemeNode")
+        logging.info("Calling Gov Scheme Node")
         messages = state["messages"]
-        # For now static response; can be expanded with tools
-        response = "Here are the top government schemes for farmers: ..."
-        return {"messages": messages + [AIMessage(content=response)]}
+        last = messages[-1]
+        
+        if isinstance(last, ToolMessage):
+            # Handle tool response case
+            query = next((m.content for m in reversed(messages) if isinstance(m, HumanMessage)), "")
+            tool_results = "\n".join(m.content for m in messages if isinstance(m, ToolMessage))
+            
+            # Enhanced template for processing tool results
+            enhanced_template = f"""{gov_scheme_template.prompt}
+
+Original Query: {{query}}
+Tool Results:
+{{tool_results}}
+
+Based on the tool results above, provide a comprehensive response about the best government schemes for farmers."""
+            
+            prompt = PromptTemplate(
+                input_variables=["date", "query", "tool_results"], 
+                template=enhanced_template
+            )
+            chain = await LLMChainFactory(model_type="gemini").get_llm_chain_async(prompt)
+            resp = await chain.ainvoke({
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "query": query,
+                "tool_results": tool_results
+            })
+            return {"messages": messages + [AIMessage(content=resp.content)]}
+        
+        # Handle initial query case
+        query = last.content
+        prompt = PromptTemplate(
+            input_variables=["date", "query"], 
+            template=gov_scheme_template.prompt
+        )
+        
+        # KEY CHANGE: Use get_llm_chain_async and bind tools manually
+        # instead of get_llm_tool_chain
+        llm = await LLMChainFactory(model_type="gemini").get_llm_async()
+        llm_with_tools = llm.bind_tools([gov_scheme_tool, web_tool])
+        chain = prompt | llm_with_tools
+        
+        resp = await chain.ainvoke({
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "query": query
+        })
+        
+        # Check if response has tool calls
+        if hasattr(resp, 'tool_calls') and resp.tool_calls:
+            return {"messages": messages + [resp]}
+        
+        return {"messages": messages + [AIMessage(content=resp.content)]}
+        
     except CustomException as e:
         logging.error(f"Error in GovSchemeNode: {e}")
         raise CustomException(e, sys) from e

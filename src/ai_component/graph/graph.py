@@ -11,6 +11,7 @@ from src.ai_component.tools.web_seach_tool import web_tool
 from src.ai_component.tools.rag_tool import rag_tool
 from src.ai_component.tools.mandi_report_tool import mandi_report_tool
 from src.ai_component.tools.weather_tool import weather_forecast_tool, weather_report_tool
+from src.ai_component.tools.gov_scheme_tool import gov_scheme_tool
 from src.ai_component.graph.nodes import (
     route_node,
     context_injestion_node,MemoryIngestionNode,
@@ -33,6 +34,7 @@ memory_saver = MemorySaver()
 disease_tools = ToolNode(tools=[web_tool, rag_tool])
 weather_tools = ToolNode(tools=[weather_forecast_tool, weather_report_tool])
 mandi_tools = ToolNode(tools = [mandi_report_tool])
+gov_scheme_tools = ToolNode(tools = [gov_scheme_tool, web_tool])
 
 
 @lru_cache(maxsize=1)
@@ -62,6 +64,7 @@ def create_async_workflow_graph():
     graph_builder.add_node("disease_tools", disease_tools)
     graph_builder.add_node("weather_tools", weather_tools) 
     graph_builder.add_node("mandi_tools", mandi_tools) 
+    graph_builder.add_node("gov_scheme_tools", gov_scheme_tools) 
 
     # Adding edges
     graph_builder.add_edge(START, "route_node")
@@ -106,15 +109,23 @@ def create_async_workflow_graph():
             "memory": "MemoryIngestionNode"
         }
     )
+    graph_builder.add_conditional_edges(
+        "GovSchemeNode", 
+        should_continue,
+        {
+            "tools": "gov_scheme_tools",
+            "memory": "MemoryIngestionNode"
+        }
+    )
     
     # After using tools, return to respective nodes
     graph_builder.add_edge("disease_tools", "DiseaseNode")
     graph_builder.add_edge("weather_tools", "WeatherNode")
     graph_builder.add_edge("mandi_tools", "MandiNode")
+    graph_builder.add_edge("gov_scheme_tools", "GovSchemeNode")
     
     # Direct edges from nodes that don't use tools
     graph_builder.add_edge("CarbonFootprintNode", "MemoryIngestionNode")
-    graph_builder.add_edge("GovSchemeNode", "MemoryIngestionNode")
     graph_builder.add_edge("GeneralNode", "MemoryIngestionNode")
 
     # Output workflow selection
@@ -187,7 +198,7 @@ async def process_query_async(
 if __name__ == "__main__":
     async def test_async_execution():
         # Simple test
-        query = "Can you forecast the price of the Onion in Uttar Pradesh market for next 4 days"
+        query = "Can you tell me about Minimum Support Price (MSP) for farmer from the government of india"
         result = await process_query_async(query)
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:

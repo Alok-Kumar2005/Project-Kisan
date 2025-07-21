@@ -282,7 +282,3 @@ if __name__ == "__main__":
     print("\n3️⃣ Check ingestion status:")
     status = tool._is_data_ingested()
     print(f"Data status: {status}")
-    
-    # Uncomment to force re-ingestion
-    # print("\n4️⃣ Force re-ingestion:")
-    # tool.force_reingest()
