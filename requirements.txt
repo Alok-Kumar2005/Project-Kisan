@@ -34,4 +34,7 @@ unstructured
 pypdf
 pypdf2
 unstructured[pdf]
+sqlalchemy
+alembic
+passlib[bcrypt] 
 -e .
