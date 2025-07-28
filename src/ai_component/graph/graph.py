@@ -13,7 +13,7 @@ from src.ai_component.tools.mandi_report_tool import mandi_report_tool
 from src.ai_component.tools.weather_tool import weather_forecast_tool, weather_report_tool
 from src.ai_component.tools.gov_scheme_tool import gov_scheme_tool
 from src.ai_component.graph.nodes import (
-    route_node,
+    route_node, UserNode,
     context_injestion_node,MemoryIngestionNode,
     GeneralNode,DiseaseNode,WeatherNode,MandiNode,GovSchemeNode,CarbonFootprintNode,
     ImageNode, VoiceNode , TextNode
@@ -48,6 +48,7 @@ def create_async_workflow_graph():
     
     # Add nodes
     graph_builder.add_node("route_node", route_node)
+    graph_builder.add_node("UserNode", UserNode)
     graph_builder.add_node("context_injestion_node", context_injestion_node)
     graph_builder.add_node("GeneralNode", GeneralNode)
     graph_builder.add_node("DiseaseNode", DiseaseNode)
@@ -68,7 +69,8 @@ def create_async_workflow_graph():
 
     # Adding edges
     graph_builder.add_edge(START, "route_node")
-    graph_builder.add_edge("route_node", "context_injestion_node")
+    graph_builder.add_edge("route_node", "UserNode")
+    graph_builder.add_edge("UserNode", "context_injestion_node")
     
     graph_builder.add_conditional_edges(
         "context_injestion_node", 
@@ -179,7 +181,7 @@ async def process_query_async(
     """
     initial_state = {
         "messages": [{"role": "user", "content": query}],
-        "collection_name": "vishu",
+        "collection_name": "alice123",
         "current_activity": "",
         "workflow": workflow
     }
@@ -198,7 +200,7 @@ async def process_query_async(
 if __name__ == "__main__":
     async def test_async_execution():
         # Simple test
-        query = "Can you give me the forecast of the Wheat price in Uttar Pradesh India maarket of next 5 days"
+        query = "Hey, hi how are you?"
         result = await process_query_async(query)
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:

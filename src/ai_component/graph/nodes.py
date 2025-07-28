@@ -4,10 +4,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
 import io
 import wave
-import struct
 import base64
 import asyncio
-import tempfile
 from cartesia import Cartesia
 from datetime import datetime
 from src.ai_component.graph.utils.chains import async_router_chain
@@ -21,8 +19,10 @@ from src.ai_component.tools.gov_scheme_tool import gov_scheme_tool
 from src.ai_component.tools.weather_tool import weather_forecast_tool, weather_report_tool
 from src.ai_component.tools.mandi_report_tool import mandi_report_tool
 from src.ai_component.modules.memory.memory_manager import memory_manager
+from src.ai_component.modules.memory.vector_store import memory
 from src.ai_component.logger import logging
 from src.ai_component.exception import CustomException
+from Database.database import user_db
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from langchain_core.prompts import PromptTemplate
 from dotenv import load_dotenv
@@ -61,6 +61,46 @@ async def route_node(state: AICompanionState) -> dict:
     except CustomException as e:
         logging.error(f"Error in route_node: {e}")
         raise CustomException(e, sys) from e
+
+async def UserNode(state: AICompanionState) -> dict:
+    """
+    ust check user and store their data if collection is new.
+    """
+    try:
+        logging.info("Calling Simple User Node")
+        
+        user_unique_name = state['collection_name']
+        if not user_unique_name:
+            return {"messages": state["messages"], "error": "No user provided"}
+        
+        if not user_db.user_exists(user_unique_name):  ## check if user exists in database
+            return {"messages": state["messages"], "error": "User not found"}
+        user_data = user_db.get_user_by_unique_name(user_unique_name)  ## get user data
+        if not user_data:
+            return {"messages": state["messages"], "error": "Could not retrieve user data"}
+        
+        collection_created = memory.create_collection(collection_name=user_unique_name) ## create collection name
+        user_info = f"""
+        User: {user_data.name} ({user_data.unique_name})
+        Age: {user_data.age}
+        Location: {user_data.city or ''}, {user_data.district}, {user_data.state}, {user_data.country}
+        Address: {user_data.resident or 'Not provided'}
+        """.strip()
+        
+        memory.ingest_data(
+            collection_name=user_unique_name,
+            data=user_info,
+            additional_metadata={"type": "user_profile", "user_id": user_data.id}
+        )
+        logging.info(f"User data stored for {user_unique_name}")
+        return {}
+    except CustomException as e:
+        logging.error(f"Error in user node : {str(e)}")
+        raise CustomException(e, sys) from e
+    except Exception as e:
+        logging.error(f"Error in SimpleUserNode: {str(e)}")
+        return {"messages": state["messages"], "error": str(e)}
+
 
 async def context_injestion_node(state: AICompanionState) -> dict:
     """
