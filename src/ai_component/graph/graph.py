@@ -152,19 +152,19 @@ def create_async_workflow_graph():
 async_graph = create_async_workflow_graph()
 tracer = OpikTracer(graph=async_graph.get_graph(xray=True))
 
-try:
-    img_data = async_graph.get_graph().draw_mermaid_png()
-    with open("workflow.png", "wb") as f:
-        f.write(img_data)
-    print("Graph saved as workflow.png")
-except Exception as e:
-    print(f"Error: {e}")
+# try:
+#     img_data = async_graph.get_graph().draw_mermaid_png()
+#     with open("workflow.png", "wb") as f:
+#         f.write(img_data)
+#     print("Graph saved as workflow.png")
+# except Exception as e:
+#     print(f"Error: {e}")
 
 
 async def process_query_async(
     query: str, 
     workflow: str = "GeneralNode",
-    thread_id: str = "default_thread",
+    thread_id: str = "default_thread1",
     config: Optional[dict] = None
 ):
     """
@@ -199,12 +199,19 @@ async def process_query_async(
 
 if __name__ == "__main__":
     async def test_async_execution():
-        # Simple test
-        query = "Hey, hi how are you?"
+        print("TEST 1 ===========================================================")
+        query = "i am facing the problem related to crop ?"
         result = await process_query_async(query)
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:
                 print(msg.content)
                 break
-        
+        print("TEST 2 ===========================================================")
+        # query = "Hey, can you tell me name?"
+        # result = await process_query_async(query)
+        # for msg in reversed(result["messages"]):
+        #     if hasattr(msg, 'content') and msg.content:
+        #         print(msg.content)
+        #         break
+
     asyncio.run(test_async_execution())
