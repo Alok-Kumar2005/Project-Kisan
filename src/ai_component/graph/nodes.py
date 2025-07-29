@@ -64,7 +64,8 @@ async def route_node(state: AICompanionState) -> dict:
 
 async def UserNode(state: AICompanionState) -> dict:
     """
-    ust check user and store their data if collection is new.
+    Just check user and store their data if collection is new.
+    Only stores user profile once to avoid duplicates.
     """
     try:
         logging.info("Calling Simple User Node")
@@ -75,25 +76,40 @@ async def UserNode(state: AICompanionState) -> dict:
         
         if not user_db.user_exists(user_unique_name):  ## check if user exists in database
             return {"messages": state["messages"], "error": "User not found"}
+        
         user_data = user_db.get_user_by_unique_name(user_unique_name)  ## get user data
         if not user_data:
             return {"messages": state["messages"], "error": "Could not retrieve user data"}
         
         collection_created = memory.create_collection(collection_name=user_unique_name) ## create collection name
-        user_info = f"""
-        User: {user_data.name} ({user_data.unique_name})
-        Age: {user_data.age}
-        Location: {user_data.city or ''}, {user_data.district}, {user_data.state}, {user_data.country}
-        Address: {user_data.resident or 'Not provided'}
-        """.strip()
         
-        memory.ingest_data(
-            collection_name=user_unique_name,
-            data=user_info,
-            additional_metadata={"type": "user_profile", "user_id": user_data.id}
+        # Check if user profile already exists in vector database
+        existing_profile = memory.search_in_collection(
+            query="user profile information name age location", 
+            collection_name=user_unique_name, 
+            k=1
         )
-        logging.info(f"User data stored for {user_unique_name}")
-        return {}
+        
+        # Only store user profile if it doesn't exist
+        if not existing_profile or len(existing_profile) == 0:
+            user_info = f"""
+            User: {user_data.name} ({user_data.unique_name})
+            Age: {user_data.age}
+            Location: {user_data.city or ''}, {user_data.district}, {user_data.state}, {user_data.country}
+            Address: {user_data.resident or 'Not provided'}
+            """.strip()
+            
+            memory.ingest_data(
+                collection_name=user_unique_name,
+                data=user_info,
+                additional_metadata={"type": "user_profile", "user_id": user_data.id}
+            )
+            logging.info(f"User data stored for {user_unique_name}")
+        else:
+            logging.info(f"User profile already exists for {user_unique_name}, skipping storage")
+        
+        return {"messages": state["messages"]}  
+        
     except CustomException as e:
         logging.error(f"Error in user node : {str(e)}")
         raise CustomException(e, sys) from e
@@ -112,7 +128,7 @@ async def context_injestion_node(state: AICompanionState) -> dict:
         logging.info(f"Current activity: {activity}")
         return {
             "current_activity": activity,
-            "messages": state["messages"]
+            "messages": state["messages"]  # Keep original messages list
         }
     except CustomException as e:
         logging.error(f"Error in context_ingestion_node: {e}")
@@ -139,7 +155,8 @@ async def GeneralNode(state: AICompanionState) -> dict:
             "query": query
         })
         logging.info("GeneralNode got response")
-        return {"messages": state["messages"] + [AIMessage(content=response.content)]}
+        # Return new AI message - add_messages will handle concatenation
+        return {"messages": [AIMessage(content=response.content)]}
     except CustomException as e:
         logging.error(f"Error in GeneralNode: {e}")
         raise CustomException(e, sys) from e
@@ -154,6 +171,7 @@ async def DiseaseNode(state: AICompanionState) -> dict:
         messages = state["messages"]
         last = messages[-1]
         history_text = "\n".join(m.content for m in messages)
+        
         # if last message is a tool result, generate final report
         if isinstance(last, ToolMessage):
             # find original query
@@ -164,16 +182,19 @@ async def DiseaseNode(state: AICompanionState) -> dict:
             factory = LLMChainFactory(model_type="gemini")
             chain = await factory.get_llm_chain_async(prompt)
             resp = await chain.ainvoke({"query": query, "tool_results": tool_results})
-            return {"messages": messages + [AIMessage(content=resp.content)]}
+            return {"messages": [AIMessage(content=resp.content)]}
+        
         # otherwise, call tools as needed
         query = last.content
         prompt = PromptTemplate(input_variables=["history", "query"], template=disease_template.prompt)
         factory = LLMChainFactory(model_type="groq")
         chain = await factory.get_llm_tool_chain(prompt, [web_tool, rag_tool])
         resp = await chain.ainvoke({"history": history_text, "query": query})
+        
         if hasattr(resp, 'tool_calls') and resp.tool_calls:
-            return {"messages": messages + [resp]}
-        return {"messages": messages + [AIMessage(content=resp.content)]}
+            return {"messages": [resp]}  # Tool call message
+        return {"messages": [AIMessage(content=resp.content)]}
+        
     except CustomException as e:
         logging.error(f"Error in DiseaseNode: {e}")
         raise CustomException(e, sys) from e
@@ -212,7 +233,7 @@ Based on the weather data above, provide a comprehensive weather report. Include
                 "query": query,
                 "tool_results": tool_results
             })
-            return {"messages": messages + [AIMessage(content=resp.content)]}
+            return {"messages": [AIMessage(content=resp.content)]}
         
         # Handle initial query branch
         query = last.content
@@ -234,9 +255,9 @@ Based on the weather data above, provide a comprehensive weather report. Include
         
         # Check if response has tool calls
         if hasattr(resp, 'tool_calls') and resp.tool_calls:
-            return {"messages": messages + [resp]}
+            return {"messages": [resp]}  # Tool call message
         
-        return {"messages": messages + [AIMessage(content=resp.content)]}
+        return {"messages": [AIMessage(content=resp.content)]}
         
     except CustomException as e:
         logging.error(f"Error in WeatherNode: {e}")
@@ -276,7 +297,7 @@ Based on the mandi data above, provide a comprehensive market analysis with prop
                 "query": query,
                 "tool_results": tool_results
             })
-            return {"messages": messages + [AIMessage(content=resp.content)]}
+            return {"messages": [AIMessage(content=resp.content)]}
         
         # Handle initial query case
         query = last.content
@@ -285,10 +306,10 @@ Based on the mandi data above, provide a comprehensive market analysis with prop
             template=mandi_template.prompt
         )
         
-        # Use tool chain with mandi_price_forecast_tool (assuming this is the correct tool name)
+        # Use tool chain with mandi_report_tool
         chain = await LLMChainFactory(model_type="groq").get_llm_tool_chain(
             prompt, 
-            [mandi_report_tool]  # or [mandi_price_forecast_tool] based on your actual tool name
+            [mandi_report_tool]
         )
         
         resp = await chain.ainvoke({
@@ -298,9 +319,9 @@ Based on the mandi data above, provide a comprehensive market analysis with prop
         
         # Check if response has tool calls
         if hasattr(resp, 'tool_calls') and resp.tool_calls:
-            return {"messages": messages + [resp]}
+            return {"messages": [resp]}  # Tool call message
         
-        return {"messages": messages + [AIMessage(content=resp.content)]}
+        return {"messages": [AIMessage(content=resp.content)]}
         
     except CustomException as e:
         logging.error(f"Error in MandiNode: {e}")
@@ -340,7 +361,7 @@ Based on the government scheme data above, provide a comprehensive response abou
                 "query": query,
                 "tool_results": tool_results
             })
-            return {"messages": messages + [AIMessage(content=resp.content)]}
+            return {"messages": [AIMessage(content=resp.content)]}
         
         # Handle initial query branch
         query = last.content
@@ -362,9 +383,9 @@ Based on the government scheme data above, provide a comprehensive response abou
         
         # Check if response has tool calls
         if hasattr(resp, 'tool_calls') and resp.tool_calls:
-            return {"messages": messages + [resp]}
+            return {"messages": [resp]}  # Tool call message
         
-        return {"messages": messages + [AIMessage(content=resp.content)]}
+        return {"messages": [AIMessage(content=resp.content)]}
         
     except CustomException as e:
         logging.error(f"Error in GovSchemeNode: {e}")
@@ -377,9 +398,8 @@ async def CarbonFootprintNode(state: AICompanionState) -> dict:
     """
     try:
         logging.info("Calling CarbonFootprintNode")
-        messages = state["messages"]
         response = "Total carbon footprint generated: ..."
-        return {"messages": messages + [AIMessage(content=response)]}
+        return {"messages": [AIMessage(content=response)]}
     except CustomException as e:
         logging.error(f"Error in CarbonFootprintNode: {e}")
         raise CustomException(e, sys) from e
@@ -392,12 +412,14 @@ async def MemoryIngestionNode(state: AICompanionState) -> dict:
     try:
         logging.info("Memory Ingestion Node -----------")
         messages = state["messages"]
+        
         ### finding last user query
         last_user_message = None
         for message in reversed(messages):
             if isinstance(message, HumanMessage):
                 last_user_message = message.content
                 break
+        
         ### finding last AI Message
         last_ai_message = None
         for message in reversed(messages):
@@ -414,7 +436,7 @@ async def MemoryIngestionNode(state: AICompanionState) -> dict:
         else:
             logging.info("No valid query-response pair found to store")
         
-        return {}
+        return {}  # Don't return messages - let state pass through
     except CustomException as e:
         logging.error(f"Error in Memory Ingestion Node: {str(e)}")
         raise CustomException(e, sys) from e
@@ -434,7 +456,7 @@ async def ImageNode(state: AICompanionState) -> dict:
         img_prompt = (await chain.ainvoke({"text": query})).content
         loop = asyncio.get_event_loop()
         img_bytes = await loop.run_in_executor(None, lambda: factory.get_image_model(img_prompt))
-        return {"messages": messages, "image": img_bytes}
+        return {"image": img_bytes}  # Don't modify messages
     except CustomException as e:
         logging.error(f"Error in ImageNode: {e}")
         raise CustomException(e, sys) from e
@@ -454,6 +476,7 @@ async def VoiceNode(state: AICompanionState) -> dict:
         if not cartesia_client:
             logging.error("Cartesia client not initialized")
             return {"audio": ""}
+            
         voice_id = "ef8390dc-0fc0-473b-bbc0-7277503793f7"
 
         audio_generator = cartesia_client.tts.bytes(
@@ -489,7 +512,7 @@ async def VoiceNode(state: AICompanionState) -> dict:
         wav_bytes = wav_buffer.read()
         audio_base64 = base64.b64encode(wav_bytes).decode('utf-8')
 
-        return {"messages": response_text, "voice": audio_base64}
+        return {"voice": audio_base64}  # Don't modify messages
     except CustomException as e:
         logging.error(f"Error in VoiceNode: {e}")
         raise CustomException(e, sys) from e
@@ -499,4 +522,4 @@ async def TextNode(state: AICompanionState) -> dict:
     """
     Pass-through final text output.
     """
-    return {"messages": state["messages"]}
+    return {}

@@ -195,14 +195,14 @@ async def process_query_async(query: str, workflow: str = "GeneralNode",thread_i
 if __name__ == "__main__":
     async def test_async_execution():
         print("TEST 1 ===========================================================")
-        query = "can you tell me the today weather condition?"
+        query = "can you tell me comodity prices?"
         result = await process_query_async(query)
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:
                 print(msg.content)
                 break
         print("TEST 2 ===========================================================")
-        query = "location gwalior madhya pradesh india?"
+        query = "Onion in Uttar Pradesh mandi?"
         result = await process_query_async(query)
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:
