@@ -202,7 +202,7 @@ if __name__ == "__main__":
                 print(msg.content)
                 break
         print("TEST 2 ===========================================================")
-        query = "Onion in Uttar Pradesh mandi?"
+        query = "Onion in Uttar Pradesh?"
         result = await process_query_async(query)
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:
