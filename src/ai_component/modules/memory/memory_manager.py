@@ -7,7 +7,7 @@ from src.ai_component.modules.memory.vector_store import memory
 from src.ai_component.llm import LLMChainFactory
 from src.ai_component.logger import logging
 from src.ai_component.exception import CustomException
-from src.ai_component.core.prompts import memory_template1, memory_template2
+from src.ai_component.core.prompts import Template
 from langchain.prompts import PromptTemplate
 from pydantic import BaseModel, Field
 from typing import Literal
@@ -31,7 +31,7 @@ class MemoryManager:
         try:
             prompt = PromptTemplate(
                 input_variables=["conversation"],
-                template=memory_template1
+                template= Template.memory_template1
             )
             chain = await self.llm.get_structured_llm_chain_async(prompt=prompt, output_schema=self.output_schema1)
             response = await chain.ainvoke({"conversation": conversation})
@@ -53,7 +53,7 @@ class MemoryManager:
             logging.info("Getting summary of conversation")
             prompt = PromptTemplate(
                 input_variables=["conversation"],
-                template=memory_template2
+                template= Template.memory_template2
             )
             chain = await self.llm.get_structured_llm_chain_async(prompt=prompt, output_schema=self.output_schema2)
             response = await chain.ainvoke({"conversation": conversation})

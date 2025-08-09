@@ -7,29 +7,19 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
 from src.ai_component.graph.state import AICompanionState
-from src.ai_component.tools.web_seach_tool import web_tool
-from src.ai_component.tools.rag_tool import rag_tool
-from src.ai_component.tools.mandi_report_tool import mandi_report_tool
-from src.ai_component.tools.weather_tool import weather_forecast_tool, weather_report_tool
-from src.ai_component.tools.gov_scheme_tool import gov_scheme_tool
-from src.ai_component.tools.call_tool import call_tool
-from src.ai_component.graph.nodes import (
-    route_node, UserNode,
-    context_injestion_node,MemoryIngestionNode,
-    GeneralNode,DiseaseNode,WeatherNode,MandiNode,GovSchemeNode,CarbonFootprintNode,
-    ImageNode, VoiceNode , TextNode
-)
+from src.ai_component.tools.all_tools import Tools
+from src.ai_component.graph.nodes import Nodes
 from src.ai_component.graph.edges import select_workflow, should_continue, select_output_workflow
 import asyncio
 from typing import Optional
 
 # Global memory saver instance
 memory_saver = MemorySaver()
-general_tool = ToolNode(tools= [rag_tool, call_tool])
-disease_tools = ToolNode(tools=[web_tool, rag_tool])
-weather_tools = ToolNode(tools=[weather_forecast_tool, weather_report_tool])
-mandi_tools = ToolNode(tools = [mandi_report_tool])
-gov_scheme_tools = ToolNode(tools = [gov_scheme_tool, web_tool])
+general_tool = ToolNode(tools= [Tools.rag_tool, Tools.call_tool])
+disease_tools = ToolNode(tools=[Tools.web_tool, Tools.rag_tool])
+weather_tools = ToolNode(tools=[Tools.weather_forecast_tool, Tools.weather_report_tool])
+mandi_tools = ToolNode(tools = [Tools.mandi_report_tool])
+gov_scheme_tools = ToolNode(tools = [Tools.gov_scheme_tool, Tools.web_tool])
 
 
 @lru_cache(maxsize=1)
@@ -37,19 +27,19 @@ def create_async_workflow_graph():
     graph_builder = StateGraph(AICompanionState)
     
     # Add nodes
-    graph_builder.add_node("route_node", route_node)
-    graph_builder.add_node("UserNode", UserNode)
-    graph_builder.add_node("context_injestion_node", context_injestion_node)
-    graph_builder.add_node("GeneralNode", GeneralNode)
-    graph_builder.add_node("DiseaseNode", DiseaseNode)
-    graph_builder.add_node("WeatherNode", WeatherNode)  
-    graph_builder.add_node("MandiNode", MandiNode)
-    graph_builder.add_node("CarbonFootprintNode", CarbonFootprintNode)
-    graph_builder.add_node("GovSchemeNode", GovSchemeNode)
-    graph_builder.add_node("MemoryIngestionNode", MemoryIngestionNode)
-    graph_builder.add_node("ImageNode", ImageNode)
-    graph_builder.add_node("VoiceNode", VoiceNode)
-    graph_builder.add_node("TextNode", TextNode)
+    graph_builder.add_node("route_node", Nodes.route_node)
+    graph_builder.add_node("UserNode", Nodes.UserNode)
+    graph_builder.add_node("context_injestion_node", Nodes.context_injestion_node)
+    graph_builder.add_node("GeneralNode", Nodes.GeneralNode)
+    graph_builder.add_node("DiseaseNode", Nodes.DiseaseNode)
+    graph_builder.add_node("WeatherNode", Nodes.WeatherNode)  
+    graph_builder.add_node("MandiNode", Nodes.MandiNode)
+    graph_builder.add_node("CarbonFootprintNode", Nodes.CarbonFootprintNode)
+    graph_builder.add_node("GovSchemeNode", Nodes.GovSchemeNode)
+    graph_builder.add_node("MemoryIngestionNode", Nodes.MemoryIngestionNode)
+    graph_builder.add_node("ImageNode", Nodes.ImageNode)
+    graph_builder.add_node("VoiceNode", Nodes.VoiceNode)
+    graph_builder.add_node("TextNode", Nodes.TextNode)
 
     ## Adding tools
     graph_builder.add_node("disease_tools", disease_tools)
@@ -184,12 +174,5 @@ if __name__ == "__main__":
             if hasattr(msg, 'content') and msg.content:
                 print(msg.content)
                 break
-        # print("TEST 2 ===========================================================")
-        # query = "Onion in Uttar Pradesh?"
-        # result = await process_query_async(query)
-        # for msg in reversed(result["messages"]):
-        #     if hasattr(msg, 'content') and msg.content:
-        #         print(msg.content)
-        #         break
 
     asyncio.run(test_async_execution())

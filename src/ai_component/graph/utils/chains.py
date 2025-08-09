@@ -6,7 +6,7 @@ import asyncio
 from pydantic import BaseModel , Field
 from typing import Optional, Literal , Union
 from src.ai_component.llm import LLMChainFactory
-from src.ai_component.core.prompts import router_template
+from src.ai_component.core.prompts import Template
 from langchain.prompts import PromptTemplate, ChatPromptTemplate
 from src.ai_component.logger import logging
 from src.ai_component.exception import CustomException
@@ -18,15 +18,11 @@ class Router(BaseModel):
 
 
 async def async_router_chain():
-    """
-    Async version of router_chain.
-    Return the node according to user query and the prompt
-    """
     try:
         logging.info("Calling Router Chain")
         prompt = PromptTemplate(
             input_variables=["query"],
-            template= router_template
+            template= Template.router_template
         )
 
         factory = LLMChainFactory(model_type="groq")
