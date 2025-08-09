@@ -31,7 +31,7 @@ class MemoryManager:
         try:
             prompt = PromptTemplate(
                 input_variables=["conversation"],
-                template=memory_template1.prompt
+                template=memory_template1
             )
             chain = await self.llm.get_structured_llm_chain_async(prompt=prompt, output_schema=self.output_schema1)
             response = await chain.ainvoke({"conversation": conversation})
@@ -53,10 +53,9 @@ class MemoryManager:
             logging.info("Getting summary of conversation")
             prompt = PromptTemplate(
                 input_variables=["conversation"],
-                template=memory_template2.prompt
+                template=memory_template2
             )
             chain = await self.llm.get_structured_llm_chain_async(prompt=prompt, output_schema=self.output_schema2)
-            # Fixed: Added await and fixed the parameter dictionary
             response = await chain.ainvoke({"conversation": conversation})
             return response.summary
         except CustomException as e:

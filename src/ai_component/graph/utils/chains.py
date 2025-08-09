@@ -26,7 +26,7 @@ async def async_router_chain():
         logging.info("Calling Router Chain")
         prompt = PromptTemplate(
             input_variables=["query"],
-            template= router_template.prompt
+            template= router_template
         )
 
         factory = LLMChainFactory(model_type="groq")

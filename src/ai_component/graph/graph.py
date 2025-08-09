@@ -12,6 +12,7 @@ from src.ai_component.tools.rag_tool import rag_tool
 from src.ai_component.tools.mandi_report_tool import mandi_report_tool
 from src.ai_component.tools.weather_tool import weather_forecast_tool, weather_report_tool
 from src.ai_component.tools.gov_scheme_tool import gov_scheme_tool
+from src.ai_component.tools.call_tool import call_tool
 from src.ai_component.graph.nodes import (
     route_node, UserNode,
     context_injestion_node,MemoryIngestionNode,
@@ -21,16 +22,10 @@ from src.ai_component.graph.nodes import (
 from src.ai_component.graph.edges import select_workflow, should_continue, select_output_workflow
 import asyncio
 from typing import Optional
-from opik.integrations.langchain import OpikTracer
-from dotenv import load_dotenv
-load_dotenv()
-
-os.environ["OPIK_API_KEY"] = os.getenv("OPIK_API_KEY")
-os.environ["OPIK_WORKSPACE"] = os.getenv("OPIK_WORKSPACE")
-os.environ["OPIK_PROJECT_NAME"] = os.getenv("OPIK_PROJECT_NAME")
 
 # Global memory saver instance
 memory_saver = MemorySaver()
+general_tool = ToolNode(tools= [rag_tool, call_tool])
 disease_tools = ToolNode(tools=[web_tool, rag_tool])
 weather_tools = ToolNode(tools=[weather_forecast_tool, weather_report_tool])
 mandi_tools = ToolNode(tools = [mandi_report_tool])
@@ -39,11 +34,6 @@ gov_scheme_tools = ToolNode(tools = [gov_scheme_tool, web_tool])
 
 @lru_cache(maxsize=1)
 def create_async_workflow_graph():
-    """
-    Creates an async version of the workflow graph with memory saver.
-    This allows for better concurrency when processing multiple requests
-    while maintaining conversation history.
-    """
     graph_builder = StateGraph(AICompanionState)
     
     # Add nodes
@@ -66,6 +56,7 @@ def create_async_workflow_graph():
     graph_builder.add_node("weather_tools", weather_tools) 
     graph_builder.add_node("mandi_tools", mandi_tools) 
     graph_builder.add_node("gov_scheme_tools", gov_scheme_tools) 
+    graph_builder.add_node("general_tool", general_tool) 
 
     # Adding edges
     graph_builder.add_edge(START, "route_node")
@@ -86,7 +77,15 @@ def create_async_workflow_graph():
         }
     )
     
-    # Use our custom should_continue function for DiseaseNode
+    # Use our custom should_continue function 
+    graph_builder.add_conditional_edges(
+        "GeneralNode", 
+        should_continue,
+        {
+            "tools": "general_tool",
+            "memory": "MemoryIngestionNode"
+        }
+    )
     graph_builder.add_conditional_edges(
         "DiseaseNode", 
         should_continue,
@@ -125,12 +124,12 @@ def create_async_workflow_graph():
     graph_builder.add_edge("weather_tools", "WeatherNode")
     graph_builder.add_edge("mandi_tools", "MandiNode")
     graph_builder.add_edge("gov_scheme_tools", "GovSchemeNode")
+    graph_builder.add_edge("general_tool", "GeneralNode")
     
     # Direct edges from nodes that don't use tools
     graph_builder.add_edge("CarbonFootprintNode", "MemoryIngestionNode")
-    graph_builder.add_edge("GeneralNode", "MemoryIngestionNode")
+    # graph_builder.add_edge("GeneralNode", "MemoryIngestionNode")
 
-    # Output workflow selection
     graph_builder.add_conditional_edges(
         "MemoryIngestionNode",
         select_output_workflow,
@@ -140,8 +139,6 @@ def create_async_workflow_graph():
             "TextNode": "TextNode"
         }
     )
-
-    # End the graph after output nodes
     graph_builder.add_edge("ImageNode", END)
     graph_builder.add_edge("VoiceNode", END)
     graph_builder.add_edge("TextNode", END)
@@ -150,30 +147,17 @@ def create_async_workflow_graph():
 
 
 async_graph = create_async_workflow_graph()
-tracer = OpikTracer(graph=async_graph.get_graph(xray=True))
 
-# try:
-#     img_data = async_graph.get_graph().draw_mermaid_png()
-#     with open("workflow.png", "wb") as f:
-#         f.write(img_data)
-#     print("Graph saved as workflow.png")
-# except Exception as e:
-#     print(f"Error: {e}")
+try:
+    img_data = async_graph.get_graph().draw_mermaid_png()
+    with open("workflow.png", "wb") as f:
+        f.write(img_data)
+    print("Graph saved as workflow.png")
+except Exception as e:
+    print(f"Error: {e}")
 
 
 async def process_query_async(query: str, workflow: str = "GeneralNode",thread_id: str = "default_thread1",config: Optional[dict] = None):
-    """
-    Async function to process a query using the async workflow graph with memory.
-    
-    Args:
-        query: The user's query
-        workflow: The workflow to use (default: "GeneralNode")
-        thread_id: Unique identifier for the conversation thread
-        config: Optional configuration dict for the graph execution
-    
-    Returns:
-        The result from the async graph execution
-    """
     initial_state = {
         "messages": [{"role": "user", "content": query}],
         "collection_name": "alice123",
@@ -185,8 +169,7 @@ async def process_query_async(query: str, workflow: str = "GeneralNode",thread_i
         config = {
             "configurable": {
                 "thread_id": thread_id
-            },
-            "callbacks": [tracer]
+            }
         }
     result = await async_graph.ainvoke(initial_state, config=config)
     return result
@@ -195,18 +178,18 @@ async def process_query_async(query: str, workflow: str = "GeneralNode",thread_i
 if __name__ == "__main__":
     async def test_async_execution():
         print("TEST 1 ===========================================================")
-        query = "can you tell me comodity prices?"
+        query = "I am facing problem related to fertilizer and my location is varanasi , uttar pradseh, india. if anyone in my area facing same problem then i confir you to call him and tell him that i wanted to meet him and share my detail like alok kumar , phone number +919369495921"
         result = await process_query_async(query)
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:
                 print(msg.content)
                 break
-        print("TEST 2 ===========================================================")
-        query = "Onion in Uttar Pradesh?"
-        result = await process_query_async(query)
-        for msg in reversed(result["messages"]):
-            if hasattr(msg, 'content') and msg.content:
-                print(msg.content)
-                break
+        # print("TEST 2 ===========================================================")
+        # query = "Onion in Uttar Pradesh?"
+        # result = await process_query_async(query)
+        # for msg in reversed(result["messages"]):
+        #     if hasattr(msg, 'content') and msg.content:
+        #         print(msg.content)
+        #         break
 
     asyncio.run(test_async_execution())
