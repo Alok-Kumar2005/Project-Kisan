@@ -168,7 +168,14 @@ async def process_query_async(query: str, workflow: str = "GeneralNode",thread_i
 if __name__ == "__main__":
     async def test_async_execution():
         print("TEST 1 ===========================================================")
-        query = "I am facing problem related to fertilizer and my location is varanasi , uttar pradseh, india. if anyone in my area facing same problem then i confir you to call him and tell him that i wanted to meet him and share my detail like alok kumar , phone number +919369495921"
+        query = "I am facing problem related to fertilizer and my location is varanasi , uttar pradseh, india. if anyone in my area facing same problem then i confir you to call him and tell him that i wanted to meet him and share my detail like alok kumar1"
+        result = await process_query_async(query)
+        for msg in reversed(result["messages"]):
+            if hasattr(msg, 'content') and msg.content:
+                print(msg.content)
+                break
+        print("TEST 2 ===========================================================")
+        query = "yes please, and share my message with him"
         result = await process_query_async(query)
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:

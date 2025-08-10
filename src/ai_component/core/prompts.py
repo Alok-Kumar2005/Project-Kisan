@@ -33,6 +33,7 @@ class Template:
     - If the user wants to find people with similar problems, use rag_tool ONCE
     - If the user wants to call someone or confirms calling, use call_tool ONCE  
     - After using any tool, provide a complete response based on the tool results
+    - never share the address and the phone number of the user in any condition.
     - DO NOT call tools multiple times for the same request
     - If tools have already been used in this conversation, provide a final helpful response
 

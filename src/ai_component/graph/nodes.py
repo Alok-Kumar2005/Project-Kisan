@@ -116,23 +116,65 @@ class Nodes:
     async def GeneralNode(state: AICompanionState) -> dict:
         try:
             logging.info("Calling General Node")
-            query = state["messages"][-1].content
-            history_text = "\n".join(m.content for m in state["messages"])
+            messages = state["messages"]
+            last_message = messages[-1]
+            if isinstance(last_message, ToolMessage):
+                query = next((m.content for m in reversed(messages) if isinstance(m, HumanMessage)), "")
+                tool_results = "\n".join(
+                    f"Tool: {m.name}\nResult: {m.content}" 
+                    for m in messages if isinstance(m, ToolMessage)
+                )
+                enhanced_template = f"""{Template.general_template}
+
+    Original Query: {{query}}
+
+    Tool Results:
+    {{tool_results}}
+
+    Based on the tool results above, provide a comprehensive and helpful response to the user's query.
+    Do NOT make any more tool calls. Use only the information from the tool results."""
+                
+                prompt = PromptTemplate(
+                    input_variables=["history", "current_activity", "query", "tool_results"],
+                    template=enhanced_template
+                )
+                
+                factory = LLMChainFactory(model_type="groq")
+                chain = await factory.get_llm_chain_async(prompt)
+                
+                history_text = "\n".join(m.content for m in messages[:-len([m for m in messages if isinstance(m, ToolMessage)])])
+                
+                response = await chain.ainvoke({
+                    "history": history_text,
+                    "current_activity": state.get("current_activity", ""),
+                    "query": query,
+                    "tool_results": tool_results
+                })
+                
+                return {"messages": [AIMessage(content=response.content)]}
+            query = last_message.content
+            history_text = "\n".join(m.content for m in messages)
+            
             prompt = PromptTemplate(
                 input_variables=["history", "current_activity", "query"],
                 template=Template.general_template
             )
+            
             factory = LLMChainFactory(model_type="groq")
             chain = await factory.get_llm_tool_chain(prompt, [Tools.rag_tool, Tools.call_tool])
+            
             response = await chain.ainvoke({
                 "history": history_text,
                 "current_activity": state.get("current_activity", ""),
                 "query": query
             })
+            
+            # Return the response (either with tool_calls or final answer)
             if hasattr(response, 'tool_calls') and response.tool_calls:
                 return {"messages": [response]}
             else:
                 return {"messages": [AIMessage(content=response.content)]}
+                
         except CustomException as e:
             logging.error(f"Error in GeneralNode: {e}")
             raise CustomException(e, sys) from e
