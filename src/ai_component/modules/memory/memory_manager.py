@@ -8,6 +8,7 @@ from src.ai_component.llm import LLMChainFactory
 from src.ai_component.logger import logging
 from src.ai_component.exception import CustomException
 from src.ai_component.core.prompts import Template
+from Database.database import user_db
 from langchain.prompts import PromptTemplate
 from pydantic import BaseModel, Field
 from typing import Literal
@@ -63,7 +64,7 @@ class MemoryManager:
             raise CustomException(e, sys) from e
         
     async def store_in_memory(self, collection_name: str, conversation: str):
-        """Store the conversation in memory"""
+        """Store the conversation in memory with automatically fetched user metadata"""
         try:
             logging.info("Checking if conversation should be stored")
             summary = await self._summary(conversation)
@@ -72,12 +73,47 @@ class MemoryManager:
                 logging.info("Conversation not important enough to store")
                 return False
             
-            logging.info("Storing the message")
-            self.vector_store.ingest_data(
+            # Prepare user metadata
+            user_metadata = {"type": "conversation_summary"}
+            user_data = user_db.get_user_by_unique_name(collection_name)
+            # logging.info(f"User data : {user_data}")
+            
+            if user_data:
+                user_metadata["user_phone"] = user_data["phone_number"]
+                user_metadata["user_name"] = user_data["name"]
+                user_metadata["user_id"] = user_data["id"]  
+                user_metadata["user_age"] = user_data["age"] 
+                
+                address_parts = []
+                if user_data.get("resident"):
+                    address_parts.append(user_data["resident"])
+                if user_data.get("city"):
+                    address_parts.append(user_data["city"])
+                if user_data.get("district"):
+                    address_parts.append(user_data["district"])
+                if user_data.get("state"):
+                    address_parts.append(user_data["state"])
+                if user_data.get("country"):
+                    address_parts.append(user_data["country"])
+                
+                user_metadata["user_address"] = ", ".join(address_parts)
+                
+                # logging.info(f"Final user_metadata before storing: {user_metadata}")
+            else:
+                logging.warning(f"No user found with unique_name: {collection_name}")
+            
+            # logging.info(f"About to store - Collection: {collection_name}")
+            # logging.info(f"About to store - Summary: {summary}")
+            # logging.info(f"About to store - Metadata: {user_metadata}")
+            
+            # logging.info("Storing the message")
+            result = self.vector_store.ingest_data(
                 collection_name=collection_name,
                 data=summary,
-                additional_metadata={"type": "conversation_summary"}
+                additional_metadata=user_metadata
             )
+            
+            # logging.info(f"Ingest result: {result}")
             logging.info("Message stored successfully")
             return True
         except CustomException as e:

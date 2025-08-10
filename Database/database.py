@@ -65,15 +65,16 @@ class UserDatabase:
         finally:
             db.close()
 
-    def get_user_by_unique_name(self, unique_name: str) -> Optional[User]:
-        """Get user by unique_name"""
+    def get_user_by_unique_name(self, unique_name: str) -> Optional[Dict[str, Any]]:
+        """Get user by unique_name and return as dictionary"""
         db = SessionLocal()
         try:
-            return (
-                db.query(User)
-                .filter(User.unique_name == unique_name.lower().strip())
-                .first()
+            user = (
+                db.query(User).filter(User.unique_name == unique_name.lower().strip()).first()
             )
+            if user:
+                return user.to_dict() 
+            return None
         except Exception as e:
             logging.error(f"Error in getting user by unique_name: {str(e)}")
             return None
@@ -231,3 +232,7 @@ if __name__ == "__main__":
         print("User created successfully:", user.to_dict())
     else:
         print("Failed to create user. Check logs for details.")
+
+    print("Get user by unique name: ")
+    data = user_db.get_user_by_unique_name('alice123')
+    print(data)

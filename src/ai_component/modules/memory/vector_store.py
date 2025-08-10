@@ -98,7 +98,7 @@ class LongTermMemory:
                 logging.info("Collection not exist")
                 self.create_collection(collection_name=collection_name, vector_size=768)
             
-            logging.info("Preparing data with metadata")
+            # logging.info("Preparing data with metadata")
             
             # Create metadata with datetime
             metadata = {
@@ -107,9 +107,14 @@ class LongTermMemory:
                 "collection": collection_name
             }
             
+            # Debug: Log initial metadata
+            logging.info(f"Initial metadata: {metadata}")
+            logging.info(f"Additional metadata received: {additional_metadata}")
+            
             # Add any additional metadata provided
             if additional_metadata:
                 metadata.update(additional_metadata)
+                logging.info(f"Metadata after update: {metadata}")
             
             # Convert data to Document objects with metadata
             if isinstance(data, str):
@@ -130,7 +135,10 @@ class LongTermMemory:
                 # Handle other data types
                 documents = [Document(page_content=str(data), metadata=metadata)]
             
-            logging.info("Ingesting data")
+            # Debug: Log document metadata
+            # logging.info(f"Document metadata before ingesting: {documents[0].metadata}")
+            
+            # logging.info("Ingesting data")
             qdrant = Qdrant.from_documents(
                 documents,
                 self.embeddings,
