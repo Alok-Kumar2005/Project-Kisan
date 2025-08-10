@@ -16,7 +16,7 @@ class SchemeToolInput(BaseModel):
     query: str = Field(..., description="The query to search for relevant information in the RAG system.")
 
 class SchemeTool(BaseTool):
-    name: str = "rag_tool"
+    name: str = "gov_scheme_tool"
     description: str = "A tool to search for relevant information about plant diseases and treatments in the RAG system based on the user's query. Use this to find specific disease information, symptoms, and treatment recommendations."
     args_schema: Type[SchemeToolInput] = SchemeToolInput
     

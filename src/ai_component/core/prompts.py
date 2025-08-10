@@ -67,7 +67,7 @@ class Template:
     5. **Use Clear Language:** Ensure your explanations are clear and easy to understand for farmers.
 
     Available tools:
-    - web_tool: Search the internet for the latest information on plant diseases and treatments
+    - tavily_search: Search the internet for the latest information on plant diseases and treatments
     - rag_tool: Search the database of plant diseases and treatments
 
     IMPORTANT: When a farmer asks about plant diseases, symptoms, or treatments, you MUST use the available tools to search for current information before providing recommendations. Do not rely solely on your knowledge - always verify with current sources.
@@ -163,7 +163,7 @@ class Template:
 
     You have access to two tools:
     1. gov_scheme_tool: A vector search tool that searches for government schemes from a comprehensive database
-    2. web_tool: A web search tool for finding the most current government schemes and programs
+    2. tavily_search: A web search tool for finding the most current government schemes and programs
 
     Instructions:
     1. First, use the gov_scheme_tool to search for relevant government schemes related to the user's query
