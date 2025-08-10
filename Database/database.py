@@ -215,16 +215,16 @@ user_db = UserDatabase()
 
 if __name__ == "__main__":
     test_data = {
-        'name': 'Alice Example',
-        'unique_name': 'alice123',
+        'name': 'kamal yadav',
+        'unique_name': 'kamal123',
         'age': 30,
-        'phone_number': '+1234567890',
-        'password': 'SecurePass!23',
-        'resident': '123 Main Street',
-        'city': 'Metropolis',
-        'district': 'Central',
-        'state': 'Wonderland',
-        'country': 'Fictionland'
+        'phone_number': '+918090175358',
+        'password': 'kamal123',
+        'resident': 'Bhitti',
+        'city': 'Varanasi',
+        'district': 'Varanasi',
+        'state': 'Uttar Pradesh',
+        'country': 'India'
     }
 
     user = user_db.create_user(test_data)
@@ -234,5 +234,5 @@ if __name__ == "__main__":
         print("Failed to create user. Check logs for details.")
 
     print("Get user by unique name: ")
-    data = user_db.get_user_by_unique_name('alice123')
+    data = user_db.get_user_by_unique_name('kamal123')
     print(data)

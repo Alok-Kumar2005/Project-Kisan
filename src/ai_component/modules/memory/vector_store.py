@@ -198,13 +198,21 @@ class LongTermMemory:
             logging.info(f"Error in similarity search {str(e)}") 
             raise CustomException(e, sys) from e
     
-    def search_across_collections(self, query: str, k: int = top_database_search) -> Dict:
-        """Search across multiple collections"""
+    def search_across_collections(self, query: str, k: int = top_database_search, exclude_collections: List[str] = None) -> Dict:
+        """Search across multiple collections, with option to exclude specific collections"""
         try:
             logging.info("Search in database")
             results = {}
             
-            for collection_name in self._list_collection(): 
+            # Default collections to exclude from user search
+            if exclude_collections is None:
+                exclude_collections = ["Government_scheme", "Government_scheme_metadata"]
+            
+            for collection_name in self._list_collection():
+                if collection_name in exclude_collections:
+                    logging.info(f"Skipping collection: {collection_name}")
+                    continue
+                    
                 if self._collection_exists(collection_name):
                     docs = self.search_in_collection(query, collection_name, k) 
                     results[collection_name] = docs
@@ -220,7 +228,7 @@ class LongTermMemory:
 memory = LongTermMemory()  
 
 if __name__ == "__main__":
-    memory = LongTermMemory()  # Fixed class name
+    memory = LongTermMemory() 
     memory.create_collection("ay7472")
     memory.ingest_data("ay7472", "hii, My name is Alok and i am from varanasi Uttar pradesh")
 

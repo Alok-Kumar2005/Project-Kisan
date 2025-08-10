@@ -3,73 +3,75 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
 from langchain.tools import BaseTool
-from typing import Type, List, Dict
+from typing import Type
 import asyncio
-import json
 from pydantic import BaseModel, Field
 from src.ai_component.logger import logging
 from src.ai_component.exception import CustomException
+from src.ai_component.modules.memory.vector_store import memory
 
 class RAGToolInput(BaseModel):
     query: str = Field(..., description="The query to search for people with similar problems or expertise in specific locations")
 
-# Mock database - in production, this would be a real database
-PEOPLE_DATABASE = [
-    {
-        "name": "Rajesh Sharma",
-        "phone": "+918090175358", 
-        "location": "Varanasi, Uttar Pradesh, India",
-        "problem": "fertilizer issues with wheat crop",
-        "description": "Facing nitrogen deficiency in wheat, looking for organic fertilizer solutions"
-    }
-]
-
-def search_people(query: str) -> str:
-    """Simple search function for people with similar problems"""
+def search_people_from_vector_store(query: str, k: int = 10) -> str:
+    """Search for people with similar problems using vector store"""
     try:
-        query_lower = query.lower()
-        matching_people = []
+        logging.info(f"Searching vector store for query: {query}")
+        search_results = memory.search_across_collections(query, k)
+        if not search_results:
+            return "No people found with similar problems in the database."
         
-        # Simple keyword matching
-        for person in PEOPLE_DATABASE:
-            score = 0
-            
-            # Check location match
-            if any(loc in person["location"].lower() for loc in ["varanasi", "uttar pradesh"] 
-                   if loc in query_lower):
-                score += 3
-            
-            # Check problem match
-            if any(keyword in person["problem"].lower() or keyword in person["description"].lower()
-                   for keyword in ["fertilizer", "pest", "soil", "organic"] 
-                   if keyword in query_lower):
-                score += 2
-            
-            if score > 0:
-                person_copy = person.copy()
-                person_copy["score"] = score
-                matching_people.append(person_copy)
+        all_matches = []
+        for collection_name, docs_with_scores in search_results.items():
+            if docs_with_scores: 
+                for doc, score in docs_with_scores:
+                    metadata = doc.metadata
+                    content = doc.page_content
+                    person = {
+                        "collection_name": collection_name,
+                        "name": metadata.get("user_name", "Unknown"),
+                        "phone": metadata.get("user_phone", "Not available"),
+                        "address": metadata.get("user_address", "Location not specified"),
+                        "user_id": metadata.get("user_id", "N/A"),
+                        "problem_summary": content,
+                        "similarity_score": float(score)
+                    }
+                    all_matches.append(person)
         
-        # Sort by score
-        matching_people.sort(key=lambda x: x["score"], reverse=True)
+        if not all_matches:
+            return "No people found with similar problems."
         
-        if not matching_people:
-            return "No people found with similar problems in your area."
+        # Sort by similarity score
+        all_matches.sort(key=lambda x: x["similarity_score"])
+        
+        # Removing duplicates
+        seen_users = set()
+        unique_matches = []
+        for match in all_matches:
+            user_key = f"{match['name']}_{match['phone']}"
+            if user_key not in seen_users:
+                seen_users.add(user_key)
+                unique_matches.append(match)
         
         # Format results
-        result = f"Found {len(matching_people)} people with similar problems:\n\n"
+        result = f"Found {len(unique_matches)} people with similar problems:\n\n"
         
-        for i, person in enumerate(matching_people[:3], 1):  # Show top 3
+        # Show top 3 most relevant matches
+        for i, person in enumerate(unique_matches[:3], 1):
             result += f"{i}. **{person['name']}**\n"
-            result += f"   📞 Phone: {person['phone']}\n"
-            result += f"   📍 Location: {person['location']}\n"
-            result += f"   🌾 Problem: {person['problem']}\n"
-            result += f"   📝 Details: {person['description']}\n\n"
+            result += f" Phone: {person['phone']}\n"
+            result += f" Location: {person['address']}\n"
+            result += f" Problem: {person['problem_summary'][:150]}{'...' if len(person['problem_summary']) > 150 else ''}\n"
+            result += f" Similarity: {person['similarity_score']:.3f}\n\n"
         
-        result += "Would you like me to call any of these people?"
+        if len(unique_matches) > 3:
+            result += f"... and {len(unique_matches) - 3} more matches available.\n\n"
+        
+        result += "Would you like me to help you connect with any of these people?"
         return result
         
     except Exception as e:
+        logging.error(f"Error searching vector store: {str(e)}")
         return f"Error searching for people: {str(e)}"
 
 class RAGTool(BaseTool):
@@ -82,15 +84,9 @@ class RAGTool(BaseTool):
         """Async version of the RAG tool."""
         try:
             logging.info(f"Running RAG tool with query: {query}")
-            
-            # Simulate some processing time
-            await asyncio.sleep(0.1)
-            
-            result = search_people(query)
-            
+            result = search_people_from_vector_store(query)
             logging.info(f"RAG tool completed search")
             return result
-            
         except Exception as e:
             logging.error(f"Error in RAG Tool: {str(e)}")
             return f"Sorry, I encountered an error while searching for people: {str(e)}"
@@ -104,5 +100,4 @@ class RAGTool(BaseTool):
             logging.error(f"Error in RAG Tool sync method: {str(e)}")
             return f"Sorry, I encountered an error: {str(e)}"
 
-# Create the tool instance
 rag_tool = RAGTool()
