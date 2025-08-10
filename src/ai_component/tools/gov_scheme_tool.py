@@ -12,13 +12,13 @@ from src.ai_component.logger import logging
 from src.ai_component.exception import CustomException
 from src.ai_component.modules.memory.vector_store import memory
 
-class RAGToolInput(BaseModel):
+class SchemeToolInput(BaseModel):
     query: str = Field(..., description="The query to search for relevant information in the RAG system.")
 
-class RAGTool(BaseTool):
+class SchemeTool(BaseTool):
     name: str = "rag_tool"
     description: str = "A tool to search for relevant information about plant diseases and treatments in the RAG system based on the user's query. Use this to find specific disease information, symptoms, and treatment recommendations."
-    args_schema: Type[RAGToolInput] = RAGToolInput
+    args_schema: Type[SchemeToolInput] = SchemeToolInput
     
     model_config = ConfigDict(extra='allow')
     memory: ClassVar = memory
@@ -263,13 +263,13 @@ class RAGTool(BaseTool):
             logging.error(f"Error in force re-ingestion: {str(e)}")
             return False
 
-gov_scheme_tool = RAGTool(data_path="data", collection_name="Government_scheme")
+gov_scheme_tool = SchemeTool(data_path="data", collection_name="Government_scheme")
 
 if __name__ == "__main__":
     # Example usage - Everything is now automatic!
     
     print("🚀 Testing Automatic RAG Pipeline...")
-    tool = RAGTool(data_path="data")
+    tool = SchemeTool(data_path="data")
     
     print("\n1️⃣ First search - will automatically ingest data if needed:")
     result1 = tool._run("What are the schemes for farmers from government to grow business")

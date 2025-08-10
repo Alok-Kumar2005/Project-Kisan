@@ -294,38 +294,63 @@ Based on the mandi data above, provide a comprehensive market analysis."""
         try:
             logging.info("Calling Gov Scheme Node")
             messages = state["messages"]
-            last = messages[-1]
-            if isinstance(last, ToolMessage):
+            last_message = messages[-1]
+            if isinstance(last_message, ToolMessage):
                 query = next((m.content for m in reversed(messages) if isinstance(m, HumanMessage)), "")
-                tool_results = "\n".join(m.content for m in messages if isinstance(m, ToolMessage))
-                enhanced_template = f"""{Template.gov_scheme_template}
-Original Query: {{query}}
-Government Scheme Tool Results:
-{{tool_results}}
-Based on the government scheme data above, provide details."""
+                tool_results = "\n".join(
+                    f"Tool: {m.name}\nResult: {m.content}" 
+                    for m in messages if isinstance(m, ToolMessage)
+                )
+                enhanced_template = f"""You are a helpful AI Assistant specializing in government schemes and programs for farmers in India.
+
+    Current date: {{date}}
+    Original Query: {{query}}
+    Government Scheme Tool Results:
+    {{tool_results}}
+    Based on the government scheme data above, provide a comprehensive and detailed response about the relevant government schemes. Include:
+    1. Scheme names and details
+    2. Eligibility criteria
+    3. Application process
+    4. Benefits provided
+    5. Contact information if available
+
+    Format the response in a clear and organized manner that helps the farmer understand and access these schemes.
+    Do NOT make any more tool calls. Use only the information from the tool results."""
+                
                 prompt = PromptTemplate(
-                    input_variables=["date", "query", "tool_results"], 
+                    input_variables=["date", "query", "tool_results"],
                     template=enhanced_template
                 )
-                chain = await LLMChainFactory(model_type="gemini").get_llm_chain_async(prompt)
-                resp = await chain.ainvoke({
+                
+                factory = LLMChainFactory(model_type="gemini")
+                chain = await factory.get_llm_chain_async(prompt)
+                
+                response = await chain.ainvoke({
                     "date": datetime.now().strftime("%Y-%m-%d"),
                     "query": query,
                     "tool_results": tool_results
                 })
-                return {"messages": [AIMessage(content=resp.content)]}
-            query = last.content
-            prompt = PromptTemplate(input_variables=["date", "query"], template=Template.gov_scheme_template)
-            chain = await LLMChainFactory(model_type="gemini").get_llm_tool_chain(
-                prompt, [Tools.gov_scheme_tool, Tools.web_tool]
+                
+                return {"messages": [AIMessage(content=response.content)]}
+            query = last_message.content
+            
+            prompt = PromptTemplate(
+                input_variables=["date", "query"], 
+                template=Template.gov_scheme_template
             )
-            resp = await chain.ainvoke({
+            
+            factory = LLMChainFactory(model_type="gemini")
+            chain = await factory.get_llm_tool_chain(prompt, [Tools.gov_scheme_tool, Tools.web_tool])
+            
+            response = await chain.ainvoke({
                 "date": datetime.now().strftime("%Y-%m-%d"),
                 "query": query
             })
-            if hasattr(resp, 'tool_calls') and resp.tool_calls:
-                return {"messages": [resp]}
-            return {"messages": [AIMessage(content=resp.content)]}
+            if hasattr(response, 'tool_calls') and response.tool_calls:
+                return {"messages": [response]}
+            else:
+                return {"messages": [AIMessage(content=response.content)]}
+                
         except CustomException as e:
             logging.error(f"Error in GovSchemeNode: {e}")
             raise CustomException(e, sys) from e
