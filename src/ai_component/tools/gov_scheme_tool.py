@@ -266,8 +266,6 @@ class SchemeTool(BaseTool):
 gov_scheme_tool = SchemeTool(data_path="data", collection_name="Government_scheme")
 
 if __name__ == "__main__":
-    # Example usage - Everything is now automatic!
-    
     print("🚀 Testing Automatic RAG Pipeline...")
     tool = SchemeTool(data_path="data")
     
