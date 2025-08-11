@@ -150,7 +150,7 @@ except Exception as e:
 async def process_query_async(query: str, workflow: str = "GeneralNode",thread_id: str = "default_thread1",config: Optional[dict] = None):
     initial_state = {
         "messages": [{"role": "user", "content": query}],
-        "collection_name": "ashok123",
+        "collection_name": "rahul123",
         "current_activity": "",
         "workflow": workflow
     }
@@ -168,7 +168,7 @@ async def process_query_async(query: str, workflow: str = "GeneralNode",thread_i
 if __name__ == "__main__":
     async def test_async_execution():
         print("TEST 1 ===========================================================")
-        query = "I am suffering of fertilizer related problem in my area. can you find tell me is there anyone other who are suffering from same problem (my location is Varanasi, Uttar Pradesh, India) and tell me message to him that i wanted to met them and find the solution "
+        query = "I am suffering of heavy rain problem in my area. can you find tell me is there anyone other who are suffering from same problem in my area (my location is Mumbai, Maharashtra) and tell me message to him that i wanted to met them and find the solution "
         result = await process_query_async(query)
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:
