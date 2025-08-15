@@ -65,19 +65,23 @@ async def login_user(login_data: UserLogin):
             detail="Invalid credentials"
         )
     
-    # Create User object to verify password
-    user = User(**{k: v for k, v in user_dict.items() if k != 'password_hash'})
-    user.password_hash = user_dict.get('password_hash', '')
+    # Get the actual User object from database for password verification
+    user_obj = user_db.get_user_by_id(user_dict['id'])
+    if not user_obj:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
     
-    # Verify password
-    if not user.verify_password(login_data.password):
+    # Verify password using the actual User object
+    if not user_obj.verify_password(login_data.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"
         )
     
     # Create tokens
-    token_data = {"sub": user.unique_name, "user_id": user.id}
+    token_data = {"sub": user_obj.unique_name, "user_id": user_obj.id}
     access_token = create_access_token(token_data)
     refresh_token = create_refresh_token(token_data)
     

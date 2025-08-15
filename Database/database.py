@@ -73,7 +73,10 @@ class UserDatabase:
                 db.query(User).filter(User.unique_name == unique_name.lower().strip()).first()
             )
             if user:
-                return user.to_dict() 
+                # Include password_hash in the returned dictionary for authentication
+                user_dict = user.to_dict()
+                user_dict['password_hash'] = user.password_hash
+                return user_dict
             return None
         except Exception as e:
             logging.error(f"Error in getting user by unique_name: {str(e)}")
@@ -82,12 +85,13 @@ class UserDatabase:
             db.close()
 
     def get_user_by_id(self, user_id: int) -> Optional[User]:
-        """Get the user by ID"""
+        """Get the user by ID and return User object"""
         db = SessionLocal()
         try:
-            return db.query(User).filter(User.id == user_id).first()
+            user = db.query(User).filter(User.id == user_id).first()
+            return user
         except Exception as e:
-            logging.error(f"Error in gettig user by id: {str(e)}")
+            logging.error(f"Error in getting user by id: {str(e)}")
             return None
         finally:
             db.close()

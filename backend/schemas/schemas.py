@@ -47,8 +47,8 @@ class UserResponse(BaseModel):
     district: str
     state: str
     country: str
-    created_at: Optional[datetime]
-    updated_at: Optional[datetime]
+    created_at: Optional[str]  # Changed from datetime to str
+    updated_at: Optional[str]  # Changed from datetime to str
 
 
 class TokenResponse(BaseModel):
