@@ -147,10 +147,16 @@ async_graph = create_async_workflow_graph()
 #     print(f"Error: {e}")
 
 
-async def process_query_async(query: str, workflow: str = "GeneralNode",thread_id: str = "default_thread1",config: Optional[dict] = None):
+async def process_query_async(
+    query: str, 
+    workflow: str = "GeneralNode",
+    thread_id: str = "default_thread",
+    collection_name: str = "default_collection",  
+    config: Optional[dict] = None
+):
     initial_state = {
         "messages": [{"role": "user", "content": query}],
-        "collection_name": "alice123",
+        "collection_name": collection_name, 
         "current_activity": "",
         "workflow": workflow
     }
@@ -163,6 +169,34 @@ async def process_query_async(query: str, workflow: str = "GeneralNode",thread_i
         }
     result = await async_graph.ainvoke(initial_state, config=config)
     return result
+
+async def process_query_stream(
+    query: str, 
+    workflow: str = "GeneralNode",
+    thread_id: str = "default_thread",
+    collection_name: str = "default_collection",
+    config: Optional[dict] = None
+):
+    """
+    Process query with streaming support
+    """
+    initial_state = {
+        "messages": [{"role": "user", "content": query}],
+        "collection_name": collection_name,
+        "current_activity": "",
+        "workflow": workflow
+    }
+    
+    if config is None:
+        config = {
+            "configurable": {
+                "thread_id": thread_id
+            }
+        }
+    
+    # Stream the graph execution
+    async for event in async_graph.astream(initial_state, config=config):
+        yield event
 
 
 if __name__ == "__main__":

@@ -37,4 +37,24 @@ unstructured[pdf]
 sqlalchemy
 alembic
 passlib[bcrypt] 
+
+fastapi
+uvicorn[standard]
+python-multipart
+sse-starlette
+
+# Authentication & Security
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+
+# Pydantic settings
+pydantic-settings
+
+# CORS
+fastapi-cors
+
+# Additional dependencies
+aiofiles
+typing-extensions
 -e .
