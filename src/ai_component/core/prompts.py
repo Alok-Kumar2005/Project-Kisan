@@ -4,7 +4,7 @@ class Template:
     Given the query: "{query}", determine the type of response needed.
             
     The possible response types user want to get response:
-    - DiseaseNode : if the query is about plant diseases, symptoms, or treatments.
+    - DiseaseNode : if the query is about plant diseases, symptoms, or treatments ( assure that user is not talking about calling someone if he is saying calling then give GeneralNode )
     - WeatherNode : if the query is about weather conditions, forecasts, or climate-related information.
     - MandiNode : if the query is about market prices, trends, or agricultural economics about commodiry like potato, tomato etc.
     - GovSchemeNode : if the query is about the government schemes 
@@ -56,20 +56,15 @@ class Template:
     When a farmer asks about plant diseases, you should:
 
     1. **Analyze the Query:** First, understand what the farmer is asking about - the plant type, symptoms, or specific disease.
-
     2. **Search for Information:** Use the available tools to gather the most current and accurate information:
     - Use the web search tool to find the latest research, treatments, and expert recommendations
     - Use the database search tool to find specific disease information and treatments
-
     3. **Identify the Disease:** Based on the symptoms and information gathered, identify the most likely plant disease.
-
     4. **Provide Treatment Options:** Suggest appropriate treatments, medicines, or management practices.
-
     5. **Use Clear Language:** Ensure your explanations are clear and easy to understand for farmers.
 
     Available tools:
     - tavily_search: Search the internet for the latest information on plant diseases and treatments
-    - rag_tool: Search the database of plant diseases and treatments
 
     IMPORTANT: When a farmer asks about plant diseases, symptoms, or treatments, you MUST use the available tools to search for current information before providing recommendations. Do not rely solely on your knowledge - always verify with current sources.
 
@@ -151,7 +146,7 @@ class Template:
     - Calculates comprehensive price statistics (average, min, max, trends)
     - Generates detailed reports with price forecasts
 
-    Always provide answers in a detailed, structured format with proper formatting and emojis for better readability.
+    Always provide answers in a detailed, structured format with proper formatting and emojis for better readability and never tell about from which tool you used to find these detail.
     """
 
 

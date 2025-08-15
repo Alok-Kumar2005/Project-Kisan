@@ -16,7 +16,7 @@ from typing import Optional
 # Global memory saver instance
 memory_saver = MemorySaver()
 general_tool = ToolNode(tools= [Tools.rag_tool, Tools.call_tool])
-disease_tools = ToolNode(tools=[Tools.web_tool, Tools.rag_tool])
+disease_tools = ToolNode(tools=[Tools.web_tool])
 weather_tools = ToolNode(tools=[Tools.weather_forecast_tool, Tools.weather_report_tool])
 mandi_tools = ToolNode(tools = [Tools.mandi_report_tool])
 gov_scheme_tools = ToolNode(tools = [Tools.gov_scheme_tool, Tools.web_tool])
@@ -138,19 +138,19 @@ def create_async_workflow_graph():
 
 async_graph = create_async_workflow_graph()
 
-try:
-    img_data = async_graph.get_graph().draw_mermaid_png()
-    with open("workflow.png", "wb") as f:
-        f.write(img_data)
-    print("Graph saved as workflow.png")
-except Exception as e:
-    print(f"Error: {e}")
+# try:
+#     img_data = async_graph.get_graph().draw_mermaid_png()
+#     with open("workflow.png", "wb") as f:
+#         f.write(img_data)
+#     print("Graph saved as workflow.png")
+# except Exception as e:
+#     print(f"Error: {e}")
 
 
 async def process_query_async(query: str, workflow: str = "GeneralNode",thread_id: str = "default_thread1",config: Optional[dict] = None):
     initial_state = {
         "messages": [{"role": "user", "content": query}],
-        "collection_name": "rahul123",
+        "collection_name": "alice123",
         "current_activity": "",
         "workflow": workflow
     }
@@ -168,7 +168,7 @@ async def process_query_async(query: str, workflow: str = "GeneralNode",thread_i
 if __name__ == "__main__":
     async def test_async_execution():
         print("TEST 1 ===========================================================")
-        query = "I am suffering of heavy rain problem in my area. can you find tell me is there anyone other who are suffering from same problem in my area (my location is Mumbai, Maharashtra) and tell me message to him that i wanted to met them and find the solution "
+        query = "I am facing problem related to pesticides in my area and my area is ( Kankar bhag, Patna , bihar) found any one if they are facing same problem and tell him that i wanted to meet him"
         result = await process_query_async(query)
         for msg in reversed(result["messages"]):
             if hasattr(msg, 'content') and msg.content:

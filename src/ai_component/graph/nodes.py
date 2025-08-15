@@ -198,7 +198,7 @@ class Nodes:
             query = last.content
             prompt = PromptTemplate(input_variables=["history", "query"], template=Template.disease_template)
             factory = LLMChainFactory(model_type="groq")
-            chain = await factory.get_llm_tool_chain(prompt, [Tools.web_tool, Tools.rag_tool])
+            chain = await factory.get_llm_tool_chain(prompt, [Tools.web_tool])
             resp = await chain.ainvoke({"history": history_text, "query": query})
             if hasattr(resp, 'tool_calls') and resp.tool_calls:
                 return {"messages": [resp]}
