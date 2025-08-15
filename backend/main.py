@@ -18,9 +18,33 @@ from Database.database import create_tables
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Starting AI Companion Backend...")
-    create_tables()  
+    
+    # Initialize user database tables
+    create_tables()
+    
+    # Initialize the async graph and SQLite saver
+    try:
+        from src.ai_component.graph.graph import initialize_database, get_async_graph
+        print("Initializing chat history database...")
+        await initialize_database()
+        print("Initializing async graph...")
+        await get_async_graph()
+        print("Database and graph initialization completed successfully!")
+    except Exception as e:
+        print(f"Error initializing chat components: {e}")
+        # Continue anyway - the system can still work for auth and user management
+    
     yield
+    
     print("Shutting down AI Companion Backend...")
+    
+    # Cleanup database connections
+    try:
+        from src.ai_component.graph.graph import cleanup_database
+        await cleanup_database()
+        print("Database connections cleaned up successfully!")
+    except Exception as e:
+        print(f"Error during cleanup: {e}")
 
 
 app = FastAPI(
@@ -66,6 +90,42 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "version": "1.0.0"}
+
+
+# Admin endpoint for database statistics (optional)
+@app.get("/admin/db-stats")
+async def get_database_stats(current_user: dict = Depends(verify_token)):
+    """Get database statistics (admin only or you can add role-based access)"""
+    try:
+        from backend.utils.db_utils import chat_history_manager
+        stats = await chat_history_manager.get_database_stats()
+        return stats
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving database statistics: {str(e)}"
+        )
+
+
+# Admin endpoint for cleanup (optional)
+@app.post("/admin/cleanup-threads")
+async def cleanup_old_threads(
+    days_old: int = 30,
+    current_user: dict = Depends(verify_token)
+):
+    """Clean up threads older than specified days"""
+    try:
+        from backend.utils.db_utils import chat_history_manager
+        deleted_count = await chat_history_manager.cleanup_old_threads(days_old)
+        return {
+            "message": f"Successfully deleted {deleted_count} old thread checkpoints",
+            "days_old": days_old
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error cleaning up threads: {str(e)}"
+        )
 
 
 if __name__ == "__main__":

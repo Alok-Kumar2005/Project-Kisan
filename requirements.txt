@@ -57,4 +57,7 @@ fastapi-cors
 # Additional dependencies
 aiofiles
 typing-extensions
+
+langgraph-checkpoint-sqlite
+aiosqlite
 -e .

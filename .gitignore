@@ -213,3 +213,4 @@ aliases/
 collections/
 raft_state.json
 data/
+next.txt

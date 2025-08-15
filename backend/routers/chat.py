@@ -7,7 +7,7 @@ import uuid
 import asyncio
 import base64
 from datetime import datetime
-from typing import Dict, Any, AsyncGenerator
+from typing import Dict, Any, AsyncGenerator, List
 from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.responses import StreamingResponse, Response
 from sse_starlette.sse import EventSourceResponse
@@ -17,12 +17,13 @@ from backend.schemas.schemas import (
     MediaResponse, ThreadCreate, ThreadResponse
 )
 from backend.core.auth import verify_token
-from src.ai_component.graph.graph import async_graph
+from src.ai_component.graph.graph import (
+    process_query_async, process_query_stream,
+    retrieve_all_threads_for_user, get_thread_messages,
+    delete_thread, get_thread_summary, get_async_graph
+)
 
 router = APIRouter()
-
-# In-memory storage for active threads (in production, use Redis or database)
-active_threads: Dict[str, Dict[str, Any]] = {}
 
 
 def generate_thread_id(user_id: int) -> str:
@@ -38,18 +39,35 @@ async def create_thread(
     """Create a new chat thread"""
     thread_id = generate_thread_id(current_user["id"])
     
-    active_threads[thread_id] = {
-        "user_id": current_user["id"],
-        "thread_name": thread_data.thread_name,
-        "created_at": datetime.now(),
-        "message_count": 0,
-        "last_activity": datetime.now()
-    }
+    # Initialize the thread by sending a system message
+    try:
+        config = {
+            "configurable": {
+                "thread_id": thread_id
+            }
+        }
+        
+        graph = await get_async_graph()
+        initial_state = {
+            "messages": [{"role": "system", "content": f"Thread created: {thread_data.thread_name or 'New Conversation'}"}],
+            "collection_name": current_user["unique_name"],
+            "current_activity": "",
+            "workflow": "GeneralNode"
+        }
+        
+        # Initialize the thread in the database
+        await graph.ainvoke(initial_state, config=config)
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating thread: {str(e)}"
+        )
     
     return ThreadResponse(
         thread_id=thread_id,
         thread_name=thread_data.thread_name,
-        created_at=active_threads[thread_id]["created_at"],
+        created_at=datetime.now(),
         message_count=0
     )
 
@@ -60,22 +78,21 @@ async def stream_chat_response(
     thread_id: str, 
     collection_name: str
 ) -> AsyncGenerator[str, None]:
-    """Stream chat response from LangGraph"""
+    """Stream chat response from LangGraph with SQLite persistence"""
     try:
-        initial_state = {
-            "messages": [{"role": "user", "content": query}],
-            "collection_name": collection_name,
-            "current_activity": "",
-            "workflow": workflow
-        }
-        
         config = {
             "configurable": {
                 "thread_id": thread_id
             }
         }
         
-        async for event in async_graph.astream(initial_state, config=config):
+        async for event in process_query_stream(
+            query=query,
+            workflow=workflow,
+            thread_id=thread_id,
+            collection_name=collection_name,
+            config=config
+        ):
             # Process different types of events from LangGraph
             for node_name, node_output in event.items():
                 if isinstance(node_output, dict) and "messages" in node_output:
@@ -125,31 +142,17 @@ async def stream_chat_message(
     message: ChatMessage,
     current_user: Dict[str, Any] = Depends(verify_token)
 ):
-    """Stream chat message response"""
+    """Stream chat message response with SQLite persistence"""
     # Generate thread ID if not provided
     if not message.thread_id:
         message.thread_id = generate_thread_id(current_user["id"])
     
-    # Validate thread ownership
-    if message.thread_id in active_threads:
-        if active_threads[message.thread_id]["user_id"] != current_user["id"]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied to this thread"
-            )
-    else:
-        # Create new thread entry
-        active_threads[message.thread_id] = {
-            "user_id": current_user["id"],
-            "thread_name": None,
-            "created_at": datetime.now(),
-            "message_count": 0,
-            "last_activity": datetime.now()
-        }
-    
-    # Update thread activity
-    active_threads[message.thread_id]["last_activity"] = datetime.now()
-    active_threads[message.thread_id]["message_count"] += 1
+    # Validate thread ownership by checking if it belongs to the user
+    if not message.thread_id.startswith(f"user_{current_user['id']}_"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this thread"
+        )
     
     # Use user's unique name as collection name
     collection_name = current_user["unique_name"]
@@ -170,39 +173,18 @@ async def send_chat_message(
     message: ChatMessage,
     current_user: Dict[str, Any] = Depends(verify_token)
 ):
-    """Send chat message and get complete response (non-streaming)"""
+    """Send chat message and get complete response (non-streaming) with SQLite persistence"""
     try:
         # Generate thread ID if not provided
         if not message.thread_id:
             message.thread_id = generate_thread_id(current_user["id"])
         
         # Validate thread ownership
-        if message.thread_id in active_threads:
-            if active_threads[message.thread_id]["user_id"] != current_user["id"]:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Access denied to this thread"
-                )
-        else:
-            # Create new thread entry
-            active_threads[message.thread_id] = {
-                "user_id": current_user["id"],
-                "thread_name": None,
-                "created_at": datetime.now(),
-                "message_count": 0,
-                "last_activity": datetime.now()
-            }
-        
-        # Update thread activity
-        active_threads[message.thread_id]["last_activity"] = datetime.now()
-        active_threads[message.thread_id]["message_count"] += 1
-        
-        initial_state = {
-            "messages": [{"role": "user", "content": message.query}],
-            "collection_name": current_user["unique_name"],
-            "current_activity": "",
-            "workflow": message.workflow
-        }
+        if not message.thread_id.startswith(f"user_{current_user['id']}_"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied to this thread"
+            )
         
         config = {
             "configurable": {
@@ -210,7 +192,13 @@ async def send_chat_message(
             }
         }
         
-        result = await async_graph.ainvoke(initial_state, config=config)
+        result = await process_query_async(
+            query=message.query,
+            workflow=message.workflow,
+            thread_id=message.thread_id,
+            collection_name=current_user["unique_name"],
+            config=config
+        )
         
         # Determine response type based on final state
         media_type = "text"
@@ -254,39 +242,109 @@ async def send_chat_message(
 async def get_user_threads(
     current_user: Dict[str, Any] = Depends(verify_token)
 ):
-    """Get all threads for the current user"""
-    user_threads = []
-    for thread_id, thread_data in active_threads.items():
-        if thread_data["user_id"] == current_user["id"]:
-            user_threads.append(
-                ThreadResponse(
-                    thread_id=thread_id,
-                    thread_name=thread_data["thread_name"],
-                    created_at=thread_data["created_at"],
-                    message_count=thread_data["message_count"]
+    """Get all threads for the current user from SQLite database"""
+    try:
+        user_id = str(current_user["id"])
+        thread_ids = await retrieve_all_threads_for_user(user_id)
+        
+        user_threads = []
+        for thread_id in thread_ids:
+            try:
+                summary = await get_thread_summary(thread_id)
+                user_threads.append(
+                    ThreadResponse(
+                        thread_id=thread_id,
+                        thread_name=summary.get("first_message", "New Conversation")[:50] + "...",
+                        created_at=datetime.now(),  # You might want to store this in the database
+                        message_count=summary.get("message_count", 0)
+                    )
                 )
-            )
+            except Exception as e:
+                print(f"Error getting thread summary for {thread_id}: {e}")
+                continue
+        
+        # Sort by thread_id (which includes timestamp info) descending
+        user_threads.sort(key=lambda x: x.thread_id, reverse=True)
+        
+        return {"threads": user_threads}
     
-    return {"threads": user_threads}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving threads: {str(e)}"
+        )
 
 
-@router.delete("/thread/{thread_id}")
-async def delete_thread(
+@router.get("/thread/{thread_id}/messages")
+async def get_thread_messages_endpoint(
     thread_id: str,
     current_user: Dict[str, Any] = Depends(verify_token)
 ):
-    """Delete a specific thread"""
-    if thread_id not in active_threads:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Thread not found"
-        )
-    
-    if active_threads[thread_id]["user_id"] != current_user["id"]:
+    """Get all messages from a specific thread"""
+    # Validate thread ownership
+    if not thread_id.startswith(f"user_{current_user['id']}_"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to this thread"
         )
     
-    del active_threads[thread_id]
-    return {"message": "Thread deleted successfully"}
+    try:
+        messages = await get_thread_messages(thread_id)
+        
+        # Convert messages to a format suitable for frontend
+        formatted_messages = []
+        for msg in messages:
+            if hasattr(msg, 'content') and msg.content:
+                # Skip system messages
+                if hasattr(msg, 'type') and msg.type == 'system':
+                    continue
+                
+                role = 'user' if hasattr(msg, 'type') and msg.type == 'human' else 'assistant'
+                formatted_messages.append({
+                    'role': role,
+                    'content': msg.content,
+                    'timestamp': getattr(msg, 'additional_kwargs', {}).get('timestamp', datetime.now().isoformat())
+                })
+        
+        return {
+            "thread_id": thread_id,
+            "messages": formatted_messages
+        }
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving thread messages: {str(e)}"
+        )
+
+
+@router.delete("/thread/{thread_id}")
+async def delete_thread_endpoint(
+    thread_id: str,
+    current_user: Dict[str, Any] = Depends(verify_token)
+):
+    """Delete a specific thread from SQLite database"""
+    # Validate thread ownership
+    if not thread_id.startswith(f"user_{current_user['id']}_"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this thread"
+        )
+    
+    try:
+        success = await delete_thread(thread_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Thread not found or could not be deleted"
+            )
+        
+        return {"message": "Thread deleted successfully"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting thread: {str(e)}"
+        )
