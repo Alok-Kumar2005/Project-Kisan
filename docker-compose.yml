@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: project-kisan-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - kisan-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:6333/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: project-kisan-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Use environment variables from .env file
+      - QDRANT_URL=http://qdrant:6333
+      - DATABASE_URL=sqlite:///./ai_companion.db
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./collections:/app/collections
+      - backend_db:/app
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    networks:
+      - kisan-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Static Frontend Server
+  frontend:
+    image: nginx:alpine
+    container_name: project-kisan-frontend
+    ports:
+      - "8080:80"
+    volumes:
+      - ./krishi-shayak-frontend:/usr/share/nginx/html:ro
+    networks:
+      - kisan-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  kisan-network:
+    driver: bridge
+
+volumes:
+  qdrant_storage:
+    driver: local
+  backend_db:
+    driver: local

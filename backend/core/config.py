@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "AI Companion Backend"
     
     # Security
-    SECRET_KEY: str = os.getenv("SECRET_KEY")
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production-min-32-chars-required")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     ]
     
     # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./ai_companion.db")
     DB_ECHO: bool = os.getenv("DB_ECHO", "False").lower() == "true"
     
     # File Upload
@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     
     class Config:
         case_sensitive = True
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Warn if using default SECRET_KEY
+        if self.SECRET_KEY == "dev-secret-key-change-in-production-min-32-chars-required":
+            print("⚠️  WARNING: Using default SECRET_KEY. Set SECRET_KEY in .env for production!")
 
 
 settings = Settings()

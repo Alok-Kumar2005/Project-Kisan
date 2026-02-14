@@ -1,0 +1,188 @@
+{
+    "test_cases": [
+        {
+            "id": "crop_rec_1",
+            "question": "What crops grow best in Bihar during monsoon season?",
+            "category": "crop_recommendation",
+            "expected_topics": [
+                "rice",
+                "paddy",
+                "maize",
+                "vegetables",
+                "monsoon",
+                "kharif"
+            ],
+            "reference_answer": "During monsoon season in Bihar, rice (paddy) is the primary crop. Other suitable crops include maize, pulses like arhar and moong, vegetables like cucumber and bottle gourd, and oilseeds."
+        },
+        {
+            "id": "disease_1",
+            "question": "How can I prevent leaf blight in wheat?",
+            "category": "disease_management",
+            "expected_topics": [
+                "fungicide",
+                "crop rotation",
+                "resistant varieties",
+                "seed treatment"
+            ],
+            "reference_answer": "To prevent leaf blight in wheat: 1) Use resistant varieties, 2) Practice crop rotation, 3) Treat seeds with fungicide, 4) Ensure proper spacing for air circulation, 5) Apply fungicide sprays if needed."
+        },
+        {
+            "id": "weather_1",
+            "question": "When is the best time to plant tomatoes?",
+            "category": "planting_schedule",
+            "expected_topics": [
+                "season",
+                "temperature",
+                "climate",
+                "timing"
+            ],
+            "reference_answer": "Tomatoes grow best when planted after the last frost. In India, the ideal planting times are: Kharif season (June-July) in northern regions, and Rabi season (October-November) in southern regions."
+        },
+        {
+            "id": "market_1",
+            "question": "What are the current market prices for wheat?",
+            "category": "market_information",
+            "expected_topics": [
+                "price",
+                "mandi",
+                "market",
+                "MSP"
+            ],
+            "reference_answer": "Market prices vary by region and quality. Check local mandi rates or the government MSP (Minimum Support Price). Farmers should also consider transportation costs and market demand."
+        },
+        {
+            "id": "pest_1",
+            "question": "How do I get rid of aphids on my cotton plants?",
+            "category": "pest_management",
+            "expected_topics": [
+                "pesticide",
+                "biological control",
+                "neem",
+                "spray"
+            ],
+            "reference_answer": "For aphid control: 1) Use neem oil spray, 2) Introduce natural predators like ladybugs, 3) Use insecticidal soap, 4) Apply chemical pesticides as last resort, 5) Monitor regularly for early detection."
+        },
+        {
+            "id": "soil_1",
+            "question": "How can I improve soil fertility?",
+            "category": "soil_management",
+            "expected_topics": [
+                "compost",
+                "manure",
+                "fertilizer",
+                "organic matter"
+            ],
+            "reference_answer": "Improve soil fertility by: 1) Adding organic compost, 2) Using green manure crops, 3) Practicing crop rotation, 4) Applying farmyard manure, 5) Balancing NPK fertilizers based on soil testing."
+        },
+        {
+            "id": "water_1",
+            "question": "What is drip irrigation and how does it help?",
+            "category": "irrigation",
+            "expected_topics": [
+                "water",
+                "efficiency",
+                "drip",
+                "conservation"
+            ],
+            "reference_answer": "Drip irrigation delivers water directly to plant roots through tubes. Benefits: 90% water efficiency, reduced weed growth, lower disease risk, uniform water distribution, and reduced labor costs."
+        },
+        {
+            "id": "fertilizer_1",
+            "question": "How much urea should I apply for rice crop?",
+            "category": "fertilizer_management",
+            "expected_topics": [
+                "urea",
+                "nitrogen",
+                "dosage",
+                "timing",
+                "application"
+            ],
+            "reference_answer": "For rice, apply 120-150 kg urea per hectare in 2-3 splits: 1/3 at planting, 1/3 at tillering (20-25 days), and 1/3 at panicle initiation (45-50 days). Adjust based on soil test results."
+        },
+        {
+            "id": "storage_1",
+            "question": "How can I store grains to prevent spoilage?",
+            "category": "post_harvest",
+            "expected_topics": [
+                "storage",
+                "moisture",
+                "pest",
+                "preservation"
+            ],
+            "reference_answer": "For grain storage: 1) Dry to 12% moisture or less, 2) Use clean, airtight containers, 3) Keep in cool, dry place, 4) Use hermetic bags, 5) Monitor for pests, 6) Consider using neem leaves as natural pesticide."
+        },
+        {
+            "id": "organic_1",
+            "question": "What are the benefits of organic farming?",
+            "category": "farming_practices",
+            "expected_topics": [
+                "organic",
+                "sustainable",
+                "environment",
+                "health"
+            ],
+            "reference_answer": "Organic farming benefits: 1) Healthier soil and crops, 2) No chemical residues, 3) Better for environment, 4) Higher market prices, 5) Sustainable long-term, 6) Improves biodiversity."
+        },
+        {
+            "id": "scheme_1",
+            "question": "What government schemes are available for farmers?",
+            "category": "government_schemes",
+            "expected_topics": [
+                "PM-KISAN",
+                "insurance",
+                "subsidy",
+                "loan"
+            ],
+            "reference_answer": "Major schemes: 1) PM-KISAN (income support), 2) PM Fasal Bima Yojana (crop insurance), 3) Kisan Credit Card (easy loans), 4) Soil Health Card, 5) Pradhan Mantri Krishi Sinchayee Yojana (irrigation)."
+        },
+        {
+            "id": "nutrition_1",
+            "question": "What nutrients does my maize crop need?",
+            "category": "crop_nutrition",
+            "expected_topics": [
+                "nitrogen",
+                "phosphorus",
+                "potassium",
+                "NPK",
+                "fertilizer"
+            ],
+            "reference_answer": "Maize requires balanced NPK: 120-150 kg Nitrogen, 60-80 kg Phosphorus, 40-60 kg Potassium per hectare. Also needs Zinc (25 kg ZnSO4) and Sulphur. Apply in splits for better efficiency."
+        },
+        {
+            "id": "rotation_1",
+            "question": "Why is crop rotation important?",
+            "category": "farming_practices",
+            "expected_topics": [
+                "rotation",
+                "soil health",
+                "pests",
+                "nutrients"
+            ],
+            "reference_answer": "Crop rotation: 1) Breaks pest and disease cycles, 2) Improves soil fertility, 3) Reduces weed pressure, 4) Balances nutrient usage, 5) Increases crop yields, 6) Reduces dependency on chemicals."
+        },
+        {
+            "id": "carbon_1",
+            "question": "How can farming reduce carbon footprint?",
+            "category": "sustainability",
+            "expected_topics": [
+                "carbon",
+                "sustainable",
+                "environment",
+                "organic"
+            ],
+            "reference_answer": "Reduce carbon footprint by: 1) No-till farming, 2) Cover cropping, 3) Organic farming, 4) Efficient water use, 5) Renewable energy, 6) Reduced fertilizer use, 7) Agroforestry."
+        },
+        {
+            "id": "season_1",
+            "question": "What is the difference between Kharif and Rabi crops?",
+            "category": "general_knowledge",
+            "expected_topics": [
+                "kharif",
+                "rabi",
+                "season",
+                "monsoon"
+            ],
+            "reference_answer": "Kharif crops are sown in June-July (monsoon) and harvested in September-October (rice, maize, cotton). Rabi crops are sown in October-November (winter) and harvested in March-April (wheat, mustard, chickpea)."
+        }
+    ]
+}

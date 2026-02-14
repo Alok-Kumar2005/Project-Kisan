@@ -214,3 +214,11 @@ collections/
 raft_state.json
 data/
 next.txt
+.env
+*.pyc
+__pycache__/
+.pytest_cache/
+*.db
+logs/
+data/
+collections/

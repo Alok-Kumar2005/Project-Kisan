@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Krishi Shayak - AI-powered agricultural assistant helping farmers with crop management, disease prevention, market insights, and farming solutions.">
+    <meta name="keywords" content="agriculture, farming, AI assistant, crop management, farmer support">
+    <meta name="author" content="Krishi Shayak">
+    <title>Krishi Shayak - Agricultural AI Assistant</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <div class="logo-circle">
+                    <div class="logo-top"></div>
+                    <div class="logo-bottom"></div>
+                    <div class="wheat-icon">🌾</div>
+                </div>
+                <span class="logo-text">Krishi Shayak</span>
+            </div>
+            <div class="nav-menu" id="nav-menu">
+                <button class="nav-btn" onclick="showLogin()">Login</button>
+                <button class="nav-btn primary" onclick="showRegister()">Register</button>
+            </div>
+            <div class="hamburger" onclick="toggleMobileMenu()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero" id="hero-section">
+        <div class="hero-content">
+            <div class="hero-text">
+                <h1>Welcome to <span class="highlight">Krishi Shayak</span></h1>
+                <p class="hero-subtitle">Your AI-powered agricultural assistant helping farmers grow better crops and
+                    improve their livelihoods.</p>
+                <div class="hero-buttons">
+                    <button class="btn primary" onclick="showRegister()">Get Started</button>
+                    <button class="btn secondary" onclick="showLogin()">Sign In</button>
+                </div>
+            </div>
+            <div class="hero-image">
+                <div class="farmer-happy">
+                    <div class="farmer-avatar">👨‍🌾</div>
+                    <p>Happy & Successful</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Login Modal -->
+    <div class="modal" id="login-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Sign In to Krishi Shayak</h2>
+                <span class="close" onclick="closeModal('login-modal')">&times;</span>
+            </div>
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="login-unique-name">Unique Name</label>
+                    <input type="text" id="login-unique-name" name="unique_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" name="password" required>
+                </div>
+                <button type="submit" class="btn primary full-width" id="login-btn">
+                    <span class="btn-text">Sign In</span>
+                    <span class="btn-loader" style="display: none;">Signing in...</span>
+                </button>
+            </form>
+            <div class="modal-footer">
+                <p>Don't have an account? <a href="#" onclick="switchToRegister()">Register here</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div class="modal" id="register-modal">
+        <div class="modal-content register-modal">
+            <div class="modal-header">
+                <h2>Join Krishi Shayak</h2>
+                <span class="close" onclick="closeModal('register-modal')">&times;</span>
+            </div>
+            <div class="register-hero">
+                <div class="farmer-comparison">
+                    <div class="farmer-before">
+                        <div class="farmer-sad">😔</div>
+                        <p>Struggling Farmer</p>
+                        <ul>
+                            <li>Low yields</li>
+                            <li>Crop diseases</li>
+                            <li>Market uncertainty</li>
+                        </ul>
+                    </div>
+                    <div class="arrow">→</div>
+                    <div class="farmer-after">
+                        <div class="farmer-happy">😊</div>
+                        <p>Successful Farmer</p>
+                        <ul>
+                            <li>Better harvests</li>
+                            <li>Disease prevention</li>
+                            <li>Market insights</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <form id="register-form" onsubmit="handleRegister(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="register-name">Full Name</label>
+                        <input type="text" id="register-name" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-unique-name">Unique Name</label>
+                        <input type="text" id="register-unique-name" name="unique_name" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="register-mobile">Mobile Number</label>
+                        <input type="tel" id="register-mobile" name="phone_number" placeholder="+91XXXXXXXXXX" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-age">Age</label>
+                        <input type="number" id="register-age" name="age" min="18" max="120" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="register-district">District</label>
+                        <input type="text" id="register-district" name="district" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-state">State</label>
+                        <input type="text" id="register-state" name="state" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="register-country">Country</label>
+                    <input type="text" id="register-country" name="country" value="India" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Password</label>
+                    <input type="password" id="register-password" name="password" required>
+                </div>
+                <button type="submit" class="btn primary full-width" id="register-btn">
+                    <span class="btn-text">Create Account</span>
+                    <span class="btn-loader" style="display: none;">Creating account...</span>
+                </button>
+            </form>
+            <div class="modal-footer">
+                <p>Already have an account? <a href="#" onclick="switchToLogin()">Sign in here</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Interface -->
+    <div class="chat-container" id="chat-container" style="display: none;">
+        <!-- Chat Sidebar -->
+        <div class="chat-sidebar" id="chat-sidebar">
+            <div class="sidebar-header">
+                <div class="user-info">
+                    <div class="user-avatar">👤</div>
+                    <div class="user-details">
+                        <span class="user-name" id="user-name">User</span>
+                        <span class="user-location" id="user-location">Location</span>
+                    </div>
+                </div>
+                <button class="btn primary" onclick="createNewThread()">
+                    <span class="btn-icon">+</span>
+                    New Chat
+                </button>
+            </div>
+            <div class="threads-list" id="threads-list">
+                <!-- Threads will be loaded here -->
+            </div>
+            <div class="sidebar-footer">
+                <button class="btn secondary" onclick="logout()">
+                    <span class="btn-icon">↗</span>
+                    Logout
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Main Area -->
+        <div class="chat-main">
+            <div class="chat-header">
+                <button class="mobile-menu-btn" onclick="toggleSidebar()">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <div class="chat-title">
+                    <h3 id="chat-thread-name">Krishi Shayak Assistant</h3>
+                    <p>Your agricultural AI companion</p>
+                </div>
+                <button class="btn danger" onclick="deleteCurrentThread()" id="delete-thread-btn"
+                    style="display: none;">
+                    <span class="btn-icon">🗑</span>
+                </button>
+            </div>
+
+            <div class="chat-messages" id="chat-messages">
+                <div class="welcome-message">
+                    <div class="logo-circle large">
+                        <div class="logo-top"></div>
+                        <div class="logo-bottom"></div>
+                        <div class="wheat-icon">🌾</div>
+                    </div>
+                    <h3>Welcome to Krishi Shayak!</h3>
+                    <p>I'm here to help you with agricultural guidance, crop management, and farming solutions.</p>
+                    <div class="example-questions">
+                        <h4>Try asking:</h4>
+                        <button class="example-btn" onclick="sendExampleMessage('What crops grow best in my region?')">
+                            What crops grow best in my region?
+                        </button>
+                        <button class="example-btn" onclick="sendExampleMessage('How do I prevent crop diseases?')">
+                            How do I prevent crop diseases?
+                        </button>
+                        <button class="example-btn" onclick="sendExampleMessage('What are current market prices?')">
+                            What are current market prices?
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-input-container">
+                <form class="chat-input-form" onsubmit="sendMessage(event)">
+                    <div class="input-wrapper">
+                        <input type="text" id="message-input" placeholder="Ask about farming, crops, market prices..."
+                            required>
+                        <button type="submit" class="send-btn" id="send-btn">
+                            <span class="send-icon">➤</span>
+                        </button>
+                    </div>
+                </form>
+                <div class="input-footer">
+                    <p>Krishi Shayak can make mistakes. Verify important information.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast" id="toast">
+        <span id="toast-message"></span>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        // Add scroll effect to navbar
+        let lastScroll = 0;
+        const navbar = document.querySelector('.navbar');
+
+        window.addEventListener('scroll', () => {
+            const currentScroll = window.pageYOffset;
+            if (currentScroll > 0) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+            lastScroll = currentScroll;
+        });
+
+        // Mobile menu toggle
+        function toggleMobileMenu() {
+            const navMenu = document.getElementById('nav-menu');
+            navMenu.classList.toggle('active');
+        }
+
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', (e) => {
+            const navMenu = document.getElementById('nav-menu');
+            const hamburger = document.querySelector('.hamburger');
+            if (!e.target.closest('.nav-menu') && !e.target.closest('.hamburger')) {
+                navMenu.classList.remove('active');
+            }
+        });
+
+        // Toggle chat sidebar on mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('chat-sidebar');
+            sidebar.classList.toggle('active');
+        }
+    </script>
+</body>
+
+</html>
