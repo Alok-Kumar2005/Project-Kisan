@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#signup-form">Skip to signup form</a>
+
+  <main class="auth-wrapper" role="main">
+    <div class="auth-card">
+
+      <div class="auth-logo" aria-label="Project Kisan">
+        <h1>🌾 Project Kisan</h1>
+        <p>Create your farmer account</p>
+      </div>
+
+      <h2>Create an account</h2>
+
+      <!-- Error alert (Req 8.8) -->
+      <div
+        id="signup-error"
+        class="alert alert-error"
+        role="alert"
+        aria-live="assertive"
+        aria-atomic="true"
+      ></div>
+
+      <form id="signup-form" novalidate>
+
+        <!-- Required fields -->
+        <div class="form-group">
+          <label for="phone_number">
+            Phone number <span aria-hidden="true">*</span>
+          </label>
+          <input
+            type="tel"
+            id="phone_number"
+            name="phone_number"
+            autocomplete="tel"
+            placeholder="+91XXXXXXXXXX"
+            required
+            aria-required="true"
+            aria-describedby="phone-signup-hint"
+          />
+          <span id="phone-signup-hint" class="sr-only">Enter your phone number in E.164 format, e.g. +911234567890</span>
+        </div>
+
+        <div class="form-group">
+          <label for="unique_name">
+            Username <span aria-hidden="true">*</span>
+          </label>
+          <input
+            type="text"
+            id="unique_name"
+            name="unique_name"
+            autocomplete="username"
+            placeholder="e.g. ravi_farmer42"
+            required
+            aria-required="true"
+            aria-describedby="uname-hint"
+          />
+          <span id="uname-hint" class="field-hint">Letters, numbers, hyphens and underscores only</span>
+        </div>
+
+        <div class="form-group">
+          <label for="password">
+            Password <span aria-hidden="true">*</span>
+          </label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            autocomplete="new-password"
+            placeholder="At least 8 characters"
+            required
+            aria-required="true"
+            minlength="8"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="confirm_password">
+            Confirm password <span aria-hidden="true">*</span>
+          </label>
+          <input
+            type="password"
+            id="confirm_password"
+            name="confirm_password"
+            autocomplete="new-password"
+            placeholder="Repeat your password"
+            required
+            aria-required="true"
+          />
+        </div>
+
+        <!-- Optional fields toggle -->
+        <div class="optional-toggle">
+          <button
+            type="button"
+            id="optional-toggle-btn"
+            aria-expanded="false"
+            aria-controls="optional-fields"
+          >
+            Show optional fields ▼
+          </button>
+        </div>
+
+        <section
+          id="optional-fields"
+          class="optional-fields"
+          hidden
+          aria-label="Optional profile information"
+        >
+          <div class="form-group">
+            <label for="full_name">Full name</label>
+            <input
+              type="text"
+              id="full_name"
+              name="full_name"
+              autocomplete="name"
+              placeholder="Your full name"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="age">Age</label>
+            <input
+              type="number"
+              id="age"
+              name="age"
+              min="1"
+              max="120"
+              placeholder="Your age"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="resident">Village / address</label>
+            <input
+              type="text"
+              id="resident"
+              name="resident"
+              placeholder="Your village or address"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="city">City</label>
+            <input type="text" id="city" name="city" placeholder="City" />
+          </div>
+
+          <div class="form-group">
+            <label for="district">District</label>
+            <input type="text" id="district" name="district" placeholder="District" />
+          </div>
+
+          <div class="form-group">
+            <label for="state">State</label>
+            <input type="text" id="state" name="state" placeholder="State" />
+          </div>
+
+          <div class="form-group">
+            <label for="country">Country</label>
+            <input
+              type="text"
+              id="country"
+              name="country"
+              autocomplete="country-name"
+              placeholder="Country"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="latitude">Latitude</label>
+            <input
+              type="number"
+              id="latitude"
+              name="latitude"
+              step="any"
+              placeholder="e.g. 22.5726"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="longitude">Longitude</label>
+            <input
+              type="number"
+              id="longitude"
+              name="longitude"
+              step="any"
+              placeholder="e.g. 88.3639"
+            />
+          </div>
+        </section>
+
+        <button
+          type="submit"
+          id="signup-btn"
+          class="btn btn-primary"
+          aria-label="Create account"
+        >
+          Create account
+        </button>
+
+      </form>
+
+      <div class="auth-footer">
+        Already have an account? <a href="/login.html">Sign in</a>
+      </div>
+
+    </div>
+  </main>
+
+
+  <script type="module" src="/js/auth.js"></script>
+</body>
+</html>

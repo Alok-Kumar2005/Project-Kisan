@@ -6,22 +6,69 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "setuptools>=80.9.0",
+    # Cloud database drivers
+    "asyncpg==0.31.0",
+    "psycopg[binary]==3.3.4",
+    "sqlalchemy[asyncio]==2.0.41",
+    # LangGraph persistence
+    "langgraph-checkpoint-postgres==2.0.21",
+    # Backend / API
+    "fastapi==0.116.1",
+    "uvicorn==0.35.0",
+    "sse-starlette==3.0.2",
+    # Auth
+    "python-jose[cryptography]==3.5.0",
+    "passlib[bcrypt]==1.7.4",
+    "python-multipart==0.0.20",
+    "pydantic-settings==2.10.1",
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.setuptools.package-dir]
+"" = "."
 
 [dependency-groups]
 dev = [
-    "langchain>=0.3.26",
-    "langchain-community>=0.3.27",
-    "langchain-core>=0.3.68",
-    "langchain-google-genai>=2.1.6",
-    "langchain-groq>=0.3.5",
-    "langchain-qdrant>=0.2.0",
-    "langgraph>=0.5.1",
+    # LangChain / LangGraph
+    "langchain==0.3.26",
+    "langchain-community==0.3.27",
+    "langchain-core==0.3.68",
+    "langchain-google-genai==2.1.6",
+    "langchain-groq==0.3.5",
+    "langchain-qdrant==0.2.0",
+    "langchain-tavily==0.1.5",
+    "langgraph==0.5.1",
+    # Pydantic / settings
+    "pydantic==2.11.7",
+    # Vector store
+    "qdrant-client==1.18.0",
+    # Google auth
+    "google-auth==2.40.3",
+    "google-auth-oauthlib==1.2.1",
+    "google-auth-httplib2==0.2.0",
+    # Utilities
+    "pypdf==5.7.0",
+    "python-dotenv==1.1.1",
+    "requests==2.32.4",
+    "beautifulsoup4==4.13.4",
+    "pandas==2.2.3",
+    "lxml==5.4.0",
+    "html5lib==1.1",
+    "tqdm==4.67.1",
+    "typing-extensions==4.13.2",
+    "alembic==1.16.2",
+    "aiofiles==24.1.0",
+    "soundfile==0.13.1",
+    # Image generation
+    "together==1.5.7",
+    # Voice synthesis
+    "cartesia==2.0.2",
+    # Backend extras
+    "uvicorn[standard]==0.35.0",
     "project-kisan",
-    "pydantic>=2.11.7",
-    "pypdf>=5.7.0",
-    "python-dotenv>=1.1.1",
-    "requests>=2.32.4",
 ]
 
 [tool.uv.sources]

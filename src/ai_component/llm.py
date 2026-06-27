@@ -1,7 +1,4 @@
 import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
-
 import requests
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
@@ -53,12 +50,14 @@ class LLMChainFactory:
             return ChatGoogleGenerativeAI(
                 model=self.gemini_model_name,
                 google_api_key=self.google_api_key,
+                streaming=True,
                 **self.gemini_model_kwargs 
             )
         elif self.model_type == "groq":
             return ChatGroq(
                 model=self.groq_model_name,
                 api_key=self.groq_api_key,
+                streaming=True,
                 **self.groq_model_kwargs  
             )
         else:

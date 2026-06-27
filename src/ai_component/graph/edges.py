@@ -1,7 +1,4 @@
 import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
-
 from src.ai_component.graph.state import AICompanionState
 from src.ai_component.logger import logging
 from src.ai_component.exception import CustomException

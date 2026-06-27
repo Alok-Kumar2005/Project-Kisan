@@ -8,9 +8,10 @@ class AICompanionState(TypedDict):
     Extends MessagesState to track conversation history and maintains the last message received.
     """
     messages: Annotated[list[BaseMessage], add_messages]
-    collection_name:str
+    collection_name: str
     workflow: str
     output: str
     current_activity: str
+    long_term_context: str   # injected per-user long-term memories from AsyncPostgresStore
     image: bytes
     voice: bytes

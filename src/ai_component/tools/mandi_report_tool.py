@@ -1,7 +1,5 @@
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
-
 from pydantic import BaseModel, Field
 from typing import Type, Optional, List, Dict, Any
 from langchain.tools import BaseTool

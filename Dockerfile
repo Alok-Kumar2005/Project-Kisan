@@ -1,58 +1,45 @@
-# Build stage
-FROM python:3.12-slim as builder
+# ── Build stage ────────────────────────────────────────────────────────────
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    make \
-    libffi-dev \
-    libssl-dev \
+# System deps needed to compile Python extensions (psycopg binary, etc.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ make libffi-dev libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements file
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir --user -r requirements.txt
 
-# Final stage
+# ── Runtime stage ───────────────────────────────────────────────────────────
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
+# curl is only needed for the HEALTHCHECK
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Python dependencies from builder
+# Copy installed packages from builder
 COPY --from=builder /root/.local /root/.local
-
-# Make sure scripts in .local are usable
 ENV PATH=/root/.local/bin:$PATH
 
-# Copy application code
+# Copy source tree
 COPY . .
 
-# Install the package in editable mode
+# Install the project itself (makes `src.*` importable as a package)
 RUN pip install --no-cache-dir -e .
 
-# Create necessary directories
-RUN mkdir -p logs data collections
+# Runtime directories
+RUN mkdir -p logs data
 
-# Expose the port FastAPI runs on
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
 EXPOSE 8000
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
-
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:8000/api/health || exit 1
 
-# Run the application
-CMD ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Entry point — all persistence is on Neon + Qdrant Cloud; no local services needed
+CMD ["python", "-m", "uvicorn", "src.backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#message-input">Skip to message input</a>
+
+  <div class="chat-layout">
+
+    <!-- ── Top bar ──────────────────────────────────────────────────── -->
+    <header class="topbar" role="banner">
+      <!-- Mobile sidebar toggle -->
+      <button
+        class="sidebar-toggle"
+        id="sidebar-toggle"
+        aria-label="Open chat list"
+        aria-expanded="false"
+        aria-controls="sidebar"
+      >
+        ☰
+      </button>
+
+      <span class="topbar-brand" aria-label="Project Kisan">🌾 Project Kisan</span>
+
+      <div class="topbar-actions">
+        <button
+          id="theme-toggle-btn"
+          class="btn-theme-toggle"
+          aria-label="Toggle dark mode"
+          title="Toggle dark / light mode"
+        >🌙</button>
+        <button
+          id="logout-btn"
+          class="btn btn-ghost"
+          aria-label="Logout"
+        >
+          Logout
+        </button>
+      </div>
+    </header>
+
+    <!-- ── Chat body ─────────────────────────────────────────────────── -->
+    <div class="chat-body">
+
+      <!-- Sidebar backdrop (mobile) -->
+      <div
+        class="sidebar-backdrop"
+        id="sidebar-backdrop"
+        aria-hidden="true"
+      ></div>
+
+      <!-- ── Sidebar ──────────────────────────────────────────────── -->
+      <nav
+        id="sidebar"
+        class="sidebar"
+        aria-label="Your chats"
+      >
+        <div class="sidebar-header">
+          <h2 id="chat-list-heading">Chats</h2>
+          <button
+            id="new-chat-sidebar-btn"
+            class="btn-new-chat-sidebar"
+            aria-label="Start a new chat"
+            title="New Chat"
+          >
+            <span aria-hidden="true">✏️</span>
+          </button>
+        </div>
+
+        <!-- Inline error for sidebar operations (Req 8.9) -->
+        <div
+          id="sidebar-error"
+          class="sidebar-error"
+          role="alert"
+          aria-live="assertive"
+        ></div>
+
+        <!-- The chat list -->
+        <div
+          id="chat-list"
+          class="chat-list"
+          role="list"
+          aria-labelledby="chat-list-heading"
+        ></div>
+
+        <!-- Load more button -->
+        <button
+          id="load-more-btn"
+          class="btn-load-more"
+          aria-label="Load more chats"
+          style="display:none"
+        >
+          Load more chats
+        </button>
+
+        <!-- Empty state -->
+        <p
+          id="sidebar-empty"
+          class="sidebar-empty"
+          aria-live="polite"
+          style="display:none"
+        >
+          No chats yet. Click ✏️ to start.
+        </p>
+      </nav>
+
+      <!-- ── Main content ─────────────────────────────────────────── -->
+      <main class="chat-main" role="main" id="chat-main">
+
+        <!-- Welcome screen (shown when no chat is selected) -->
+        <div id="chat-welcome" class="chat-welcome" aria-live="polite">
+          <div class="chat-welcome-icon" aria-hidden="true">🌾</div>
+          <h2>Welcome to Kisan AI</h2>
+          <p>Your smart farming assistant — ask about crops, weather, market prices, or government schemes.</p>
+          <div class="chat-welcome-chips" aria-label="Suggested questions">
+            <button class="chip" data-query="What crops should I grow this season?">🌱 Crops this season</button>
+            <button class="chip" data-query="What is today's mandi price for wheat?">📊 Mandi prices</button>
+            <button class="chip" data-query="What government schemes are available for farmers?">🏛️ Govt schemes</button>
+            <button class="chip" data-query="What is the weather forecast for my area?">🌦️ Weather forecast</button>
+          </div>
+        </div>
+
+        <!-- History load error (Req 8.11) -->
+        <div
+          id="history-error"
+          class="history-error"
+          role="alert"
+          aria-live="assertive"
+          style="display:none"
+        ></div>
+
+        <!-- Messages area (hidden until a thread is selected) -->
+        <div
+          id="messages-area"
+          class="messages-area"
+          role="log"
+          aria-label="Conversation messages"
+          aria-live="polite"
+          aria-relevant="additions"
+          style="display:none; flex-direction:column"
+        ></div>
+
+        <!-- Input bar -->
+        <div class="input-bar" role="region" aria-label="Message input">
+          <label for="message-input" class="sr-only">Type your message</label>
+          <textarea
+            id="message-input"
+            placeholder="Ask about crops, weather, market prices…"
+            rows="1"
+            aria-label="Message input"
+            aria-multiline="true"
+            disabled
+          ></textarea>
+          <button
+            id="send-btn"
+            class="send-btn"
+            aria-label="Send message"
+            disabled
+          >
+            ➤
+          </button>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ── Delete confirmation dialog (Req 8.6) ─────────────────────── -->
+  <div
+    id="delete-dialog"
+    class="dialog-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="delete-dialog-title"
+    aria-describedby="delete-dialog-desc"
+    aria-hidden="true"
+  >
+    <div class="dialog-box">
+      <h3 id="delete-dialog-title">Delete chat?</h3>
+      <p id="delete-dialog-desc">
+        Are you sure you want to delete
+        "<span id="delete-dialog-name">this chat</span>"?
+        This cannot be undone.
+      </p>
+      <div class="dialog-actions">
+        <button
+          id="delete-cancel-btn"
+          class="btn btn-secondary"
+          aria-label="Cancel deletion"
+        >
+          Cancel
+        </button>
+        <button
+          id="delete-confirm-btn"
+          class="btn btn-danger"
+          aria-label="Confirm deletion"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <script type="module" src="/js/chat.js"></script>
+</body>
+</html>

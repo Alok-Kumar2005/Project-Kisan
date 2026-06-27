@@ -1,12 +1,10 @@
 import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
-
 import asyncio
 from pydantic import BaseModel , Field
 from typing import Optional, Literal , Union
 from src.ai_component.llm import LLMChainFactory
 from src.ai_component.core.prompts import Template
+from src.ai_component.config import default_model
 from langchain.prompts import PromptTemplate, ChatPromptTemplate
 from src.ai_component.logger import logging
 from src.ai_component.exception import CustomException
@@ -25,7 +23,7 @@ async def async_router_chain():
             template= Template.router_template
         )
 
-        factory = LLMChainFactory(model_type="groq")
+        factory = LLMChainFactory(model_type=default_model)
         chain = await factory.get_structured_llm_chain_async(prompt, Router)
         
         return chain

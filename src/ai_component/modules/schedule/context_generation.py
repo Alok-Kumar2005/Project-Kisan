@@ -3,8 +3,6 @@ import os
 from datetime import datetime
 from typing import Dict, Optional
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
-
 from src.ai_component.core.schedules import (
     FRIDAY_SCHEDULE,
     MONDAY_SCHEDULE,

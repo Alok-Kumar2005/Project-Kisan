@@ -1,8 +1,5 @@
-import sys
 import os
 from datetime import datetime
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
-
 import tqdm
 from typing import List, Dict, Optional
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -20,18 +17,26 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+QDRANT_URL = os.getenv("QDRANT_URL")
+QDRANT_API = os.getenv("QDRANT_API")
+
+if not QDRANT_URL or not QDRANT_API:
+    raise RuntimeError("QDRANT_URL and QDRANT_API must be set")
+
+
 class LongTermMemory: 
-    def __init__(self, qdrant_url: str = os.getenv("QDRANT_URL"), google_api_key: str = os.getenv("GOOGLE_API_KEY")):
-        self.qdrant_url = qdrant_url
+    def __init__(self, google_api_key: str = os.getenv("GOOGLE_API_KEY")):
+        self.qdrant_url = QDRANT_URL
         self.google_api_key = google_api_key
 
         self.embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001",
+            model="models/text-embedding-004",
             google_api_key=self.google_api_key
         )
 
         self.client = QdrantClient(
-            url=self.qdrant_url,
+            url=QDRANT_URL,
+            api_key=QDRANT_API,
             prefer_grpc=False
         )
 
@@ -98,23 +103,13 @@ class LongTermMemory:
                 logging.info("Collection not exist")
                 self.create_collection(collection_name=collection_name, vector_size=768)
             
-            # logging.info("Preparing data with metadata")
-            
-            # Create metadata with datetime
+            # Build PII-stripped metadata — only 4 allowed fields
             metadata = {
                 "created_at": datetime.now().isoformat(),
                 "timestamp": datetime.now().timestamp(),
-                "collection": collection_name
+                "collection": collection_name,
+                "type": additional_metadata.get("type", "conversation_summary") if additional_metadata else "conversation_summary"
             }
-            
-            # Debug: Log initial metadata
-            logging.info(f"Initial metadata: {metadata}")
-            logging.info(f"Additional metadata received: {additional_metadata}")
-            
-            # Add any additional metadata provided
-            if additional_metadata:
-                metadata.update(additional_metadata)
-                logging.info(f"Metadata after update: {metadata}")
             
             # Convert data to Document objects with metadata
             if isinstance(data, str):
